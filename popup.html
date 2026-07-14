@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <h1>X Grok Sidebar</h1>
+  <label for="key">xAI API key</label>
+  <input id="key" type="password" placeholder="xai-..." />
+  <label for="mist">MIST endpoint (Aurelia)</label>
+  <input id="mist" placeholder="http://localhost:7842" />
+  <label for="os">OS endpoint (sovereign runtime)</label>
+  <input id="os" placeholder="http://localhost:8742" />
+  <p class="hint">Key at <a href="https://console.x.ai" target="_blank">console.x.ai</a>. MIST + OS run locally — nothing leaves your machine.</p>
+  <button id="save">Save</button>
+  <div id="status"></div>
+  <script src="popup.js"></script>
+</body>
+</html>

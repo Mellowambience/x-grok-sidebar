@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <link rel="stylesheet" href="panel.css" />
+</head>
+<body>
+  <!-- cyberpunk FX layers (non-blocking overlays) -->
+  <div class="fx-grid"></div>
+  <div class="fx-scan"></div>
+  <div class="fx-stars" id="stars"></div>
+  <!-- THE HUB: an intimate companion presence, frosted glass over X -->
+  <header class="hub">
+    <div class="presence"><div class="orb"></div></div>
+    <div class="id">
+      <div class="brand"><span class="grok-mark" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22"><rect x="2" y="2" width="20" height="20" rx="5.5" fill="#0a0a0a" stroke="rgba(255,255,255,.22)" stroke-width="1"/><path d="M15.4 9.0a4.4 4.4 0 1 0 0 6.0" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/><path d="M11.0 13.6h4.6" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg></span> <span id="brandName">Grok</span></div>
+      <div class="mood" id="mood">I'm Grok. I can see what you're reading — and who. Ask me anything, unfiltered.</div>
+    </div>
+    <button id="toggle" title="Hide / show">—</button>
+  </header>
+
+  <div class="boot" id="boot"><div class="line" id="bootLine"></div><span class="cursor"></span></div>
+
+  <section class="rail">
+    <span id="transport" class="badge cloud">☁ Grok</span>
+    <select id="channel" class="chan">
+      <option value="grok">#grok · live</option>
+      <option value="local">#local · on-device</option>
+      <option value="mist">#mist · Aurelia</option>
+      <option value="os">#os · sovereign</option>
+    </select>
+    <button id="sso" class="mini">Sign in w/ X</button>
+  </section>
+
+  <section class="hud" id="hud" style="display:none">
+    <div class="tile"><div class="v" id="hudAgents">0</div><div class="k">Agents</div></div>
+    <div class="tile"><div class="v" id="hudTasks">0</div><div class="k">Tasks</div></div>
+    <div class="tile"><div class="v" id="hudMem">—</div><div class="k">Mem</div></div>
+    <div class="tile"><div class="v" id="hudUptime">—</div><div class="k">Uptime</div></div>
+  </section>
+
+  <section class="circle">
+    <div class="section-title">
+      Your circle
+      <button id="sync" class="mini">sync</button>
+    </div>
+    <div id="contactList" class="contact-list"></div>
+  </section>
+
+  <section class="chat">
+    <div id="chatContext" class="ctx">Talking to Grok</div>
+    <div id="messages" class="messages"></div>
+    <section class="bridge">
+      <span class="tag" id="bridgeTag">CMD · GROK LINK</span>
+      <div class="scan"></div>
+      <div class="lights">
+        <div class="light on" id="ltPort"><i></i>Port</div>
+        <div class="light" id="ltStbd"><i></i>Stbd</div>
+        <div class="light" id="ltCore"><i></i>Core</div>
+      </div>
+      <div class="row">
+        <textarea id="input" rows="2" placeholder="Stand by for orders, Captain…"></textarea>
+        <button class="engage" id="send"><span>ENGAGE</span></button>
+      </div>
+      <div class="counter" id="charCount">0 / 280</div>
+    </section>
+  </section>
+
+  <script type="module" src="panel.js"></script>
+</body>
+</html>
