@@ -22,7 +22,7 @@ async function ssoLogin() {
   const state = randomB64url(16);
   const verifier = randomB64url(64);
   const challenge = await sha256B64url(verifier);
-  const url = 'https://twitter.com/i/oauth2/authorize?' + new URLSearchParams({
+  const url = 'https://x.com/i/oauth2/authorize?' + new URLSearchParams({
     response_type: 'code',
     client_id: CLIENT_ID,
     redirect_uri: REDIRECT,
@@ -47,7 +47,7 @@ async function ssoLogin() {
     code_verifier: verifier,
     client_id: CLIENT_ID
   });
-  const r = await fetch('https://api.twitter.com/2/oauth2/token', {
+  const r = await fetch('https://api.x.com/2/oauth2/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body
@@ -76,7 +76,7 @@ async function ssoRefresh(refresh) {
     refresh_token: refresh,
     client_id: CLIENT_ID
   });
-  const r = await fetch('https://api.twitter.com/2/oauth2/token', {
+  const r = await fetch('https://api.x.com/2/oauth2/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body
@@ -109,7 +109,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       if (!token) return sendResponse({ ok: false, error: 'no token' });
       const body = { text: msg.text };
       if (msg.reply && msg.reply.in_reply_to_tweet_id) body.reply = msg.reply;
-      const r = await fetch('https://api.twitter.com/2/tweets', {
+      const r = await fetch('https://api.x.com/2/tweets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
         body: JSON.stringify(body)
