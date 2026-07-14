@@ -77,14 +77,14 @@ async function fetchFriends() {
     ssoBtn.disabled = false;
     return;
   }
-  const me = await (await fetch('https://api.twitter.com/2/users/me', {
+  const me = await (await fetch('https://api.x.com/2/users/me', {
     headers: { Authorization: 'Bearer ' + t }
   })).json();
   if (!me.data) return;
   let next = null;
   const seen = new Set(contacts.map((c) => c.handle));
   do {
-    let url = `https://api.twitter.com/2/users/${me.data.id}/following?max_results=100&user.fields=profile_image_url,name,username`;
+    let url = `https://api.x.com/2/users/${me.data.id}/following?max_results=100&user.fields=profile_image_url,name,username`;
     if (next) url += '&pagination_token=' + next;
     const r = await fetch(url, { headers: { Authorization: 'Bearer ' + t } });
     const j = await r.json();
@@ -375,8 +375,8 @@ async function approvePost(draft, box) {
   const payload = { text: draft };
   if (activeContact) {
     try {
-      const me = await (await fetch('https://api.twitter.com/2/users/me', { headers: { Authorization: 'Bearer ' + (await getTokenSafe()) } })).json();
-      const tu = await (await fetch(`https://api.twitter.com/2/users/by/username/${activeContact}`, { headers: { Authorization: 'Bearer ' + (await getTokenSafe()) } })).json();
+      const me = await (await fetch('https://api.x.com/2/users/me', { headers: { Authorization: 'Bearer ' + (await getTokenSafe()) } })).json();
+      const tu = await (await fetch(`https://api.x.com/2/users/by/username/${activeContact}`, { headers: { Authorization: 'Bearer ' + (await getTokenSafe()) } })).json();
       if (tu.data) payload.reply = { in_reply_to_tweet_id: tu.data.id };
     } catch (e) { /* best-effort; post standalone */ }
   }
