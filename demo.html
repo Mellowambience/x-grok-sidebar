@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>X Grok Sidebar — GROKIFIED (cyberpunk HUD+HUB)</title>
+<style>
+  @property --angle { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
+  :root {
+    --bg:#04060a; --surface:#0a0c0f; --surface-2:#12151a; --surface-3:#171b21;
+    --line:#1e242b; --text:#e7e9ea; --muted:#71767b; --faint:#48515a;
+    --accent:#1d9bf0; --accent-soft:rgba(29,155,240,.12); --local:#00ba7c; --queued:#f5b800;
+    --mist:#b794f6; --os:#57e0d8; --warm:255,176,122;
+    --glass:rgba(8,12,18,.46); --glass-strong:rgba(8,12,18,.7); --glass-border:rgba(120,200,255,.14); --blur:20px;
+    --neon-rgb:255,176,122; --neon:#ffb07a;
+  }
+  body[data-channel="grok"]{--neon-rgb:255,176,122;--neon:#ffb07a;}
+  body[data-channel="local"]{--neon-rgb:0,186,124;--neon:#00ba7c;}
+  body[data-channel="mist"]{--neon-rgb:183,148,246;--neon:#b794f6;}
+  body[data-channel="os"]{--neon-rgb:87,224,216;--neon:#57e0d8;}
+  *{box-sizing:border-box;}
+  body{margin:0;height:100vh;display:flex;background:
+      radial-gradient(120% 80% at 100% 0%, rgba(var(--neon-rgb),.10), transparent 55%),
+      radial-gradient(120% 80% at 0% 100%, rgba(var(--neon-rgb),.06), transparent 55%),
+      #04060a;color:var(--text);
+    font-family:"SFMono-Regular",ui-monospace,"Cascadia Code","Segoe UI",Roboto,Helvetica,Arial,monospace;
+    -webkit-font-smoothing:antialiased;overflow:hidden;}
+  .fx-grid{position:fixed;inset:0;pointer-events:none;z-index:0;
+    background-image:linear-gradient(rgba(var(--neon-rgb),.06) 1px,transparent 1px),linear-gradient(90deg,rgba(var(--neon-rgb),.06) 1px,transparent 1px);
+    background-size:42px 42px;-webkit-mask-image:radial-gradient(circle at 82% 42%,#000 0%,transparent 78%);mask-image:radial-gradient(circle at 82% 42%,#000 0%,transparent 78%);
+    animation:gridpan 14s linear infinite;}
+  @keyframes gridpan{from{background-position:0 0,0 0;}to{background-position:0 42px,42px 0;}}
+  .fx-scan{position:fixed;inset:0;pointer-events:none;z-index:9998;
+    background:repeating-linear-gradient(to bottom,rgba(0,0,0,0) 0,rgba(0,0,0,0) 2px,rgba(0,0,0,.2) 3px,rgba(0,0,0,0) 4px);
+    mix-blend-mode:multiply;animation:scanmove 9s linear infinite;}
+  .fx-scan::after{content:"";position:absolute;inset:0;background:rgba(var(--neon-rgb),.025);animation:flick 5.5s steps(2,end) infinite;}
+  @keyframes scanmove{from{background-position:0 0;}to{background-position:0 120px;}}
+  @keyframes flick{0%,100%{opacity:.35;}50%{opacity:.12;}73%{opacity:.5;}}
+
+  .feed{flex:1;overflow-y:auto;padding:18px;border-right:1px solid var(--glass-border);z-index:1;
+    background:radial-gradient(900px 500px at 20% -10%,rgba(var(--neon-rgb),.07),transparent 60%),rgba(8,12,18,.4);}
+  .feed h2{font-size:18px;margin:0 0 14px;font-weight:800;position:sticky;top:0;backdrop-filter:blur(8px);}
+  .tweet{display:flex;gap:11px;padding:13px;border:1px solid rgba(120,200,255,.08);border-radius:14px;margin-bottom:11px;background:rgba(10,14,20,.5);cursor:pointer;transition:border-color .15s,box-shadow .2s;}
+  .tweet:hover{border-color:rgba(var(--neon-rgb),.4);box-shadow:0 0 16px rgba(var(--neon-rgb),.15);}
+  .tweet.pinned{border-color:var(--neon);box-shadow:0 0 18px rgba(var(--neon-rgb),.25);}
+  .tweet .ph{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#1c2530,#2a3340);flex:0 0 auto;}
+  .tweet .name{font-weight:700;} .tweet .handle{color:var(--muted);} .tweet .body{margin-top:5px;line-height:1.45;color:#c9d3db;}
+  .hint{color:var(--muted);font-size:12.5px;padding:6px 2px;line-height:1.5;}
+
+  .sidebar{width:360px;min-width:360px;display:flex;flex-direction:column;overflow:hidden;position:relative;z-index:1;
+    background:var(--glass-strong);backdrop-filter:blur(var(--blur)) saturate(160%);-webkit-backdrop-filter:blur(var(--blur)) saturate(160%);
+    border-left:1px solid var(--glass-border);box-shadow:-10px 0 40px rgba(var(--neon-rgb),.1);}
+  .sidebar::before{content:"";position:absolute;inset:0;padding:1.4px;pointer-events:none;z-index:2;
+    background:conic-gradient(from var(--angle),transparent 0deg,rgba(var(--neon-rgb),.95) 45deg,transparent 120deg,transparent 240deg,rgba(var(--neon-rgb),.95) 300deg,transparent 360deg);
+    -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;
+    animation:spin 7s linear infinite;}
+  @keyframes spin{to{--angle:360deg;}}
+  .hub,.rail,.circle,.ctx,.composer,.hud{background:var(--glass);backdrop-filter:blur(var(--blur)) saturate(160%);-webkit-backdrop-filter:blur(var(--blur)) saturate(160%);}
+  .hub{position:relative;z-index:3;display:flex;align-items:center;gap:12px;padding:16px;border-bottom:1px solid var(--glass-border);}
+  .presence{position:relative;width:44px;height:44px;flex:0 0 auto;}
+  .orb{position:absolute;inset:0;border-radius:50%;overflow:hidden;
+    background:
+      radial-gradient(circle at 20% 25%, rgba(255,255,255,0.18), transparent 18%),
+      radial-gradient(circle at 65% 40%, #5a1d0e 0 6%, transparent 7%),
+      radial-gradient(circle at 38% 70%, #7a2410 0 9%, transparent 10%),
+      radial-gradient(circle at 80% 72%, #4d1809 0 5%, transparent 6%),
+      radial-gradient(circle at 50% 50%, #c75a32 0%, #a8431f 45%, #7d2f16 75%, #5e2310 100%);
+    background-size:200% 100%,200% 100%,200% 100%,200% 100%,100% 100%;background-repeat:repeat;background-position:0 0;
+    box-shadow:inset -6px -6px 14px rgba(0,0,0,0.55),inset 5px 5px 12px rgba(255,180,140,0.25),0 0 18px rgba(var(--neon-rgb),0.6),0 0 44px rgba(var(--neon-rgb),0.3);
+    animation:breathe 4.5s ease-in-out infinite,mars 14s linear infinite;}
+  .orb::before{content:"";position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle at 32% 28%,rgba(255,220,190,0.35),transparent 42%),radial-gradient(circle at 70% 75%,rgba(0,0,0,0.5),transparent 60%);pointer-events:none;z-index:2;}
+  .orb.mist{animation:breathe 4.5s ease-in-out infinite,mars 20s linear infinite;}
+  .orb.os{animation:breathe 4.5s ease-in-out infinite,mars 12s linear infinite;}
+  .orb::after{content:"";position:absolute;inset:-9px;border-radius:50%;background:radial-gradient(circle,rgba(var(--neon-rgb),.22),transparent 70%);animation:halo 4.5s ease-in-out infinite;}
+  @keyframes breathe{0%,100%{transform:scale(1);}50%{transform:scale(1.07);}}
+  @keyframes halo{0%,100%{opacity:.5;transform:scale(1);}50%{opacity:.9;transform:scale(1.12);}}
+  @keyframes ringspin{to{filter:hue-rotate(360deg);}}
+  @keyframes term{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
+  @keyframes mars{from{background-position:0 0,0 0,0 0,0 0,0 0;}to{background-position:-200% 0,-200% 0,-200% 0,-200% 0,0 0;}}
+  .id{min-width:0;flex:1;} .brand{font-weight:800;font-size:15px;display:flex;align-items:center;gap:6px;letter-spacing:.6px;
+    text-shadow:1.5px 0 rgba(255,0,90,.5),-1.5px 0 rgba(0,240,255,.5);animation:glitch 7s infinite;}
+  @keyframes glitch{0%,90%,100%{transform:translate(0);}92%{transform:translate(-2px,0);}93%{transform:translate(2px,-1px);}94%{transform:translate(-1px,1px);}95%{transform:translate(0);}}
+  .grok-mark{display:inline-flex;filter:drop-shadow(0 0 7px rgba(var(--neon-rgb),.7));}
+  .grok-mark svg{display:block;} .grok-mark rect{stroke:rgba(var(--neon-rgb),.55);} .grok-mark path{stroke:var(--neon);}
+  .mood{margin-top:3px;font-size:12.5px;line-height:1.4;color:var(--muted);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;transition:color .3s,text-shadow .3s;}
+  .mood.focus{color:var(--accent);text-shadow:0 0 8px rgba(29,155,240,.4);} .mood.think{color:#c9d3db;} .mood.bliss{color:var(--local);text-shadow:0 0 8px rgba(0,186,124,.4);}
+  .mood.local{color:var(--local);} .mood.mist{color:var(--mist);text-shadow:0 0 8px rgba(183,148,246,.4);}
+  .mood.os{color:var(--os);text-shadow:0 0 8px rgba(87,224,216,.5);} .mood.drift{color:var(--queued);}
+  #toggle{background:var(--surface-3);color:var(--neon);border:1px solid rgba(var(--neon-rgb),.3);border-radius:10px;width:30px;height:26px;cursor:pointer;flex:0 0 auto;text-shadow:0 0 6px rgba(var(--neon-rgb),.6);}
+  .rail{position:relative;z-index:3;display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--glass-border);}
+  .badge{font-size:11px;font-weight:600;padding:3px 9px;border-radius:999px;border:1px solid rgba(var(--neon-rgb),.3);white-space:nowrap;text-shadow:0 0 8px currentColor;}
+  .badge.cloud{color:var(--accent);background:var(--accent-soft);} .badge.local{color:var(--local);background:rgba(0,186,124,.12);}
+  .badge.queued{color:var(--queued);background:rgba(245,184,0,.12);} .badge.mist{color:var(--mist);background:rgba(183,148,246,.12);}
+  .badge.os{color:var(--os);background:rgba(87,224,216,.12);}
+  .chan{flex:1;min-width:0;background:var(--surface-3);color:var(--text);border:1px solid rgba(var(--neon-rgb),.28);border-radius:10px;padding:6px 8px;font:inherit;font-size:12.5px;cursor:pointer;box-shadow:inset 0 0 10px rgba(var(--neon-rgb),.08);}
+  .mini{background:var(--surface-3);color:var(--neon);border:1px solid rgba(var(--neon-rgb),.3);border-radius:999px;font-size:11.5px;font-weight:600;padding:5px 11px;cursor:pointer;text-shadow:0 0 6px rgba(var(--neon-rgb),.5);}
+  .mini:hover{box-shadow:0 0 12px rgba(var(--neon-rgb),.45);border-color:var(--neon);} #sso:disabled{opacity:.6;cursor:default;box-shadow:none;}
+  .hud{position:relative;z-index:3;display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:10px 12px;border-bottom:1px solid var(--glass-border);}
+  .tile{background:var(--glass);border:1px solid rgba(var(--neon-rgb),.3);border-radius:12px;padding:9px 6px;text-align:center;position:relative;overflow:hidden;
+    box-shadow:inset 0 0 14px rgba(var(--neon-rgb),.1),0 0 8px rgba(var(--neon-rgb),.08);animation:rise .25s ease;}
+  .tile::before{content:"";position:absolute;left:0;top:0;height:2px;width:100%;background:linear-gradient(90deg,transparent,rgba(var(--neon-rgb),.9),transparent);animation:sweep 2.6s linear infinite;}
+  @keyframes sweep{from{transform:translateX(-100%);}to{transform:translateX(100%);}}
+  .tile .v{font-size:16px;font-weight:800;color:var(--neon);text-shadow:0 0 10px rgba(var(--neon-rgb),.85);animation:valpulse 2.4s ease-in-out infinite;}
+  .tile .k{font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-top:2px;}
+  .tile.off .v{color:var(--faint);text-shadow:none;}
+  @keyframes valpulse{0%,100%{opacity:.82;}50%{opacity:1;}}
+  .circle{position:relative;z-index:3;border-bottom:1px solid var(--glass-border);max-height:28%;display:flex;flex-direction:column;}
+  .section-title{display:flex;align-items:center;justify-content:space-between;padding:11px 14px 7px;font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:var(--faint);font-weight:700;}
+  .contact-list{overflow-y:auto;padding:0 10px 10px;}
+  .contact{display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:12px;cursor:pointer;transition:background .15s,transform .15s,box-shadow .2s;}
+  .contact:hover{background:var(--surface-3);transform:translateX(2px);box-shadow:0 0 14px rgba(var(--neon-rgb),.18);}
+  .contact.active{background:var(--surface-3);box-shadow:inset 0 0 0 1px var(--neon),0 0 14px rgba(var(--neon-rgb),.25);}
+  .contact .ph{width:34px;height:34px;border-radius:50%;flex:0 0 auto;background:linear-gradient(135deg,var(--surface-3),#20262e);border:1px solid rgba(var(--neon-rgb),.2);}
+  .contact .meta{display:flex;flex-direction:column;line-height:1.25;min-width:0;}
+  .contact .name{font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;} .contact .handle{color:var(--muted);font-size:12px;}
+  .chat{position:relative;z-index:3;flex:1;display:flex;flex-direction:column;min-height:0;background:transparent;}
+  .ctx{padding:9px 14px;font-size:12px;color:var(--accent);border-bottom:1px solid var(--glass-border);text-shadow:0 0 8px rgba(29,155,240,.35);}
+  .messages{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:11px;}
+  .msg{max-width:86%;padding:9px 12px;border-radius:16px;line-height:1.45;white-space:pre-wrap;word-wrap:break-word;font-size:13.5px;animation:msgIn .32s cubic-bezier(.2,.8,.2,1);}
+  @keyframes msgIn{from{opacity:0;transform:translateY(10px);filter:blur(3px);}to{opacity:1;transform:none;filter:none;}}
+  .msg.user{align-self:flex-end;background:linear-gradient(135deg,rgba(29,155,240,.9),rgba(29,155,240,.7));color:#fff;border-bottom-right-radius:5px;box-shadow:0 0 16px rgba(29,155,240,.4);}
+  .msg.assistant{align-self:flex-start;background:var(--glass-strong);color:var(--text);border-bottom-left-radius:5px;box-shadow:inset 0 0 0 1px rgba(var(--neon-rgb),.3),0 0 16px rgba(var(--neon-rgb),.12);}
+  .msg.typing{display:flex;gap:5px;align-items:center;padding:11px 14px;}
+  .msg.typing .dot{width:7px;height:7px;border-radius:50%;background:var(--neon);box-shadow:0 0 9px rgba(var(--neon-rgb),.9);animation:blink 1.2s infinite ease-in-out;}
+  .msg.typing .dot:nth-child(2){animation-delay:.2s;} .msg.typing .dot:nth-child(3){animation-delay:.4s;}
+  @keyframes blink{0%,80%,100%{opacity:.25;transform:scale(.8);}40%{opacity:1;transform:scale(1.15);}}
+  .composer{position:relative;z-index:3;display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--glass-border);}
+  #input{flex:1;resize:none;background:rgba(10,14,20,.7);color:var(--text);border:1px solid rgba(var(--neon-rgb),.28);border-radius:14px;padding:10px 12px;font:inherit;font-size:13.5px;box-shadow:inset 0 0 12px rgba(var(--neon-rgb),.08);transition:border-color .2s,box-shadow .2s;}
+  #input:focus{outline:none;border-color:var(--neon);box-shadow:inset 0 0 14px rgba(var(--neon-rgb),.18),0 0 14px rgba(var(--neon-rgb),.25);}
+  #send{background:linear-gradient(135deg,rgba(var(--neon-rgb),.95),rgba(var(--neon-rgb),.7));color:#04060a;border:0;border-radius:14px;width:44px;cursor:pointer;font-size:17px;font-weight:800;flex:0 0 auto;box-shadow:0 0 16px rgba(var(--neon-rgb),.5);transition:transform .12s,filter .2s;}
+  #send:hover{filter:brightness(1.12);} #send:active{transform:scale(.94);} #send:disabled{opacity:.5;cursor:default;box-shadow:none;}
+  @keyframes rise{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
+  .bridge{position:relative;z-index:3;padding:10px 12px 12px;border-top:1px solid var(--glass-border);background:linear-gradient(180deg,rgba(8,12,18,.5),rgba(8,12,18,.85));backdrop-filter:blur(var(--blur)) saturate(160%);-webkit-backdrop-filter:blur(var(--blur)) saturate(160%);}
+  .bridge .scan{height:14px;border-radius:8px;overflow:hidden;position:relative;margin-bottom:9px;background:linear-gradient(90deg,rgba(var(--neon-rgb),.06),rgba(var(--neon-rgb),.16),rgba(var(--neon-rgb),.06));border:1px solid rgba(var(--neon-rgb),.22);}
+  .bridge .scan::before{content:"";position:absolute;left:0;top:0;height:100%;width:40%;background:linear-gradient(90deg,transparent,rgba(var(--neon-rgb),.55),transparent);animation:sweepX 3.2s linear infinite;}
+  @keyframes sweepX{from{transform:translateX(-120%);}to{transform:translateX(320%);}}
+  .bridge .lights{display:flex;gap:8px;margin-bottom:9px;}
+  .light{flex:1;display:flex;align-items:center;gap:6px;font-size:10px;letter-spacing:.5px;color:var(--muted);text-transform:uppercase;}
+  .light i{width:9px;height:9px;border-radius:50%;background:#2a2f36;box-shadow:inset 0 0 3px #000;}
+  .light.on i{background:var(--neon);box-shadow:0 0 8px rgba(var(--neon-rgb),.9);}
+  .light.on{color:var(--neon);}
+  .bridge .row{display:flex;gap:8px;align-items:stretch;}
+  .bridge textarea{flex:1;resize:none;background:rgba(10,14,20,.7);color:var(--text);border:1px solid rgba(var(--neon-rgb),.28);border-radius:10px;padding:9px 11px;font:inherit;font-size:13px;box-shadow:inset 0 0 12px rgba(var(--neon-rgb),.08);}
+  .bridge textarea:focus{outline:none;border-color:var(--neon);box-shadow:inset 0 0 14px rgba(var(--neon-rgb),.18),0 0 14px rgba(var(--neon-rgb),.25);}
+  .engage{--skew:-9deg;transform:skewX(var(--skew));min-width:74px;border:0;cursor:pointer;color:#04060a;font-weight:800;letter-spacing:1px;background:linear-gradient(135deg,rgba(var(--neon-rgb),.95),rgba(var(--neon-rgb),.7));box-shadow:0 0 16px rgba(var(--neon-rgb),.5);border-radius:10px;font-size:13px;display:flex;align-items:center;justify-content:center;padding:0 14px;transition:filter .2s,transform .12s;}
+  .engage span{transform:skewX(9deg);}
+  .engage:hover{filter:brightness(1.12);}
+  .engage:active{transform:skewX(var(--skew)) scale(.95);}
+  .engage:disabled{opacity:.5;box-shadow:none;}
+.bridge .counter{text-align:right;font-size:11px;color:var(--muted);margin-top:6px;letter-spacing:.5px;}
+.post-proposal{margin:8px 0;padding:11px 13px;border-radius:14px;border:1px solid rgba(var(--neon-rgb),.4);background:var(--glass-strong);box-shadow:inset 0 0 0 1px rgba(var(--neon-rgb),.18),0 0 14px rgba(var(--neon-rgb),.15);animation:msgIn .32s cubic-bezier(.2,.8,.2,1);}
+.post-proposal .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:var(--neon);text-shadow:0 0 8px rgba(var(--neon-rgb),.5);}
+.post-proposal .draft{margin:6px 0 9px;line-height:1.45;color:var(--text);white-space:pre-wrap;word-break:break-word;}
+.post-proposal .acts{display:flex;gap:8px;}
+.post-proposal button{flex:1;border:0;border-radius:10px;padding:8px;font:inherit;font-weight:700;cursor:pointer;}
+.post-proposal .yes{background:linear-gradient(135deg,rgba(var(--neon-rgb),.95),rgba(var(--neon-rgb),.7));color:#04060a;box-shadow:0 0 14px rgba(var(--neon-rgb),.5);}
+.post-proposal .no{background:var(--surface-3);color:var(--muted);}
+.post-proposal .status{margin-top:7px;font-size:12px;color:var(--local);}
+</style>
+</head>
+<body>
+  <div class="fx-grid"></div>
+  <div class="fx-scan"></div>
+  <div class="feed">
+    <h2>Home — the site you're on (Grok is watching with you)</h2>
+    <div id="feed"></div>
+    <p class="hint">This is x.com. Click a tweet to pin it to Grok — then ask and it'll answer <b>from the horse's mouth</b>. Switch channels to retint the neon: <b>#grok</b> amber, <b>#mist</b> purple, <b>#os</b> cyan, <b>#local</b> green.</p>
+  </div>
+
+  <div class="sidebar">
+    <header class="hub">
+      <div class="presence"><div class="orb" id="orb"></div></div>
+      <div class="id">
+        <div class="brand"><span class="grok-mark"><svg viewBox="0 0 24 24" width="22" height="22"><rect x="2" y="2" width="20" height="20" rx="5.5" fill="#0a0a0a" stroke="rgba(255,255,255,.22)" stroke-width="1"/><path d="M15.4 9.0a4.4 4.4 0 1 0 0 6.0" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/><path d="M11.0 13.6h4.6" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg></span> <span id="brandName">Grok</span></div>
+        <div class="mood" id="mood">I'm Grok. I can see what you're reading — and who. Ask me anything, unfiltered.</div>
+      </div>
+      <button id="toggle" title="Hide / show">—</button>
+    </header>
+
+    <section class="rail">
+      <span id="transport" class="badge cloud">☁ Grok</span>
+      <select id="channel" class="chan">
+        <option value="grok">#grok · live</option>
+        <option value="local">#local · on-device</option>
+        <option value="mist">#mist · Aurelia</option>
+        <option value="os">#os · sovereign</option>
+      </select>
+      <button id="sso" class="mini">Sign in w/ X</button>
+    </section>
+
+    <section class="hud" id="hud" style="display:none">
+      <div class="tile"><div class="v" id="hudAgents">0</div><div class="k">Agents</div></div>
+      <div class="tile"><div class="v" id="hudTasks">0</div><div class="k">Tasks</div></div>
+      <div class="tile"><div class="v" id="hudMem">—</div><div class="k">Mem</div></div>
+      <div class="tile"><div class="v" id="hudUptime">—</div><div class="k">Uptime</div></div>
+    </section>
+
+    <section class="circle">
+      <div class="section-title">Your circle <button id="sync" class="mini">sync</button></div>
+      <div id="contactList" class="contact-list"></div>
+    </section>
+
+    <section class="chat">
+      <div id="chatContext" class="ctx">Talking to Grok</div>
+      <div id="messages" class="messages"></div>
+      <section class="bridge">
+        <span class="tag" id="bridgeTag">CMD · GROK LINK</span>
+        <div class="scan"></div>
+        <div class="lights">
+          <div class="light on" id="ltPort"><i></i>Port</div>
+          <div class="light" id="ltStbd"><i></i>Stbd</div>
+          <div class="light" id="ltCore"><i></i>Core</div>
+        </div>
+        <div class="row">
+          <textarea id="input" rows="2" placeholder="Stand by for orders, Captain…"></textarea>
+          <button class="engage" id="send"><span>ENGAGE</span></button>
+        </div>
+        <div class="counter" id="charCount">0 / 280</div>
+      </section>
+    </section>
+  </div>
+
+<script type="module">
+import twitter from './lib/twitter-text/index.js';
+function decideTransport({ online, hasCloudKey, channel, localReady, mistReady, osReady }) {
+  if (channel === 'os') return osReady ? 'os' : (mistReady ? 'mist' : (localReady ? 'local' : 'queued'));
+  if (channel === 'mist') return mistReady ? 'mist' : (localReady ? 'local' : 'queued');
+  if (channel === 'local') return localReady ? 'local' : 'queued';
+  if (hasCloudKey && online) return 'cloud';
+  if (mistReady) return 'mist';
+  if (localReady) return 'local';
+  return 'queued';
+}
+const MOCK_FRIENDS = [{handle:'grok',name:'Grok'},{handle:'jack',name:'jack'},{handle:'naval',name:'Naval'},{handle:'aurelia',name:'Aurelia'}];
+const FEED = [
+  {name:'Vitalik',handle:'VitalikButerin',body:'On local-first agents and the sovereignty of compute.'},
+  {name:'Edward',handle:'snowden',body:'Encryption by default should not be a feature. It should be the floor.'},
+  {name:'Amara',handle:'GoddessAther',body:'building local + private, no clouds touching my soul code.'}
+];
+const POSTS = Object.fromEntries(FEED.map(f=>[f.handle,f.body]));
+let contacts=[], activeContact=null, channel='grok', messages=[], online=true;
+let hasCloudKey=true, localReady=false, mistReady=false, osReady=false;
+const $=(id)=>document.getElementById(id);
+const feedEl=$('feed'), contactListEl=$('contactList'), messagesEl=$('messages'),
+      inputEl=$('input'), transportEl=$('transport'), ctxEl=$('chatContext'), moodEl=$('mood'),
+      brandName=$('brandName'), orb=$('orb'), hudEl=$('hud');
+
+function renderFeed(){
+  feedEl.innerHTML = FEED.map(f =>
+    `<div class="tweet" data-h="${f.handle}"><div class="ph"></div><div><div><span class="name">${f.name}</span> <span class="handle">@${f.handle}</span></div><div class="body">${f.body}</div></div></div>`
+  ).join('');
+  feedEl.querySelectorAll('.tweet').forEach(t=>{
+    t.onclick=()=>{ const h=t.dataset.h;
+      feedEl.querySelectorAll('.tweet').forEach(x=>x.classList.remove('pinned'));
+      t.classList.add('pinned'); setActive(h);
+      moodEl.textContent=`Pinned @${h} to me. Ask — I'll answer from their own words.`; moodEl.className='mood focus'; };
+  });
+}
+renderFeed();
+
+function setMood(text, kind=''){ moodEl.textContent=text; moodEl.className='mood'+(kind?' '+kind:''); }
+function moodForTransport(t, persona){
+  if (t==='mist') return ['I am MIST — sovereign, local, and yours. Ask me anything.','mist'];
+  if (t==='os') return ['Sovereign OS online. Agents, tasks, and memory are mine to command.','os'];
+  if (t==='local') return ['Thinking quietly, on my own. Nothing leaves this device.','local'];
+  if (t==='queued') return ["You drifted offline — I'll hold your words until we reconnect.",'drift'];
+  return [persona==='mist'?'Aurelia is listening.':persona==='os'?'OS standing by.':"I'm Grok. I can see what you're reading — and who. Ask me anything, unfiltered.",'think'];
+}
+function renderHud(){
+  const st={agents:osReady?3:0, tasks:osReady?7:0, mem:osReady?'5.2GB':'—', uptime:osReady?'3d 04h':'—'};
+  $('hudAgents').textContent=st.agents; $('hudTasks').textContent=st.tasks;
+  $('hudMem').textContent=st.mem; $('hudUptime').textContent=st.uptime;
+  hudEl.querySelectorAll('.tile').forEach(t=>t.classList.toggle('off',!osReady));
+}
+function refreshTransport(){
+  const t = decideTransport({ online, hasCloudKey, channel, localReady, mistReady, osReady });
+  transportEl.textContent = t==='cloud'?'☁ Grok':t==='local'?'🔒 On-device':t==='mist'?'✦ Aurelia':t==='os'?'⬡ OS':'⏳ Queued';
+  transportEl.className='badge '+t;
+  const persona = channel==='mist'?'mist':channel==='os'?'os':'grok';
+  brandName.textContent = persona==='mist'?'Aurelia':persona==='os'?'OS':'Grok';
+  orb.className='orb'+(persona==='mist'?' mist':persona==='os'?' os':'');
+  document.body.dataset.channel = t==='queued'?channel:(t==='cloud'?'grok':t);
+  hudEl.style.display = (channel==='os'||(channel==='grok'&&t==='os'))?'grid':'none';
+  if(hudEl.style.display==='grid') renderHud();
+  const [text,kind]=moodForTransport(t,persona); setMood(text,kind);
+  updateBridge(t);
+  return t;
+}
+function updateBridge(t){
+  const tag={cloud:'CMD · GROK LINK',mist:'CMD · AURELIA',os:'CMD · SOVEREIGN',local:'CMD · ON-DEVICE',queued:'CMD · STANDBY'}[t]||'CMD · STANDBY';
+  const bt=$('bridgeTag'); if(bt) bt.textContent=tag;
+  const lp=$('ltPort'),ls=$('ltStbd'),lc=$('ltCore');
+  if(lp) lp.classList.toggle('on', t==='cloud'||t==='mist'||t==='os');
+  if(ls) ls.classList.toggle('on', t==='mist'||t==='os');
+  if(lc) lc.classList.toggle('on', localReady);
+}
+function renderContacts(){
+  contactListEl.innerHTML='';
+  if(!contacts.length){ contactListEl.innerHTML='<div style="color:var(--muted);padding:6px 8px;line-height:1.4;">Your circle is quiet. Click a tweet to pin it, or hit sync, or sign in with X to bring your friends here.</div>'; return; }
+  contacts.forEach(c=>{
+    const row=document.createElement('div'); row.className='contact'+(activeContact===c.handle?' active':'');
+    row.innerHTML=`<div class="ph"></div><div class="meta"><span class="name">${c.name||c.handle}</span><span class="handle">@${c.handle}</span></div>`;
+    row.onclick=()=>setActive(c.handle); contactListEl.appendChild(row);
+  });
+}
+function setActive(h){ activeContact=h; ctxEl.textContent=h?`With @${h}`:'Talking to Grok'; renderContacts();
+  setMood(h?`Pinned @${h} to me. Ask — I'll answer from their own words.`:'Talking to Grok','focus'); }
+function renderMessages(){ messagesEl.innerHTML=''; messages.forEach(m=>{const e=document.createElement('div');e.className='msg '+(m.role==='user'?'user':'assistant');e.textContent=m.content;messagesEl.appendChild(e);}); messagesEl.scrollTop=messagesEl.scrollHeight; }
+function push(role,content){ messages.push({role,content}); renderMessages(); }
+
+let typingEl=null;
+function showTyping(){ hideTyping(); typingEl=document.createElement('div'); typingEl.className='msg assistant typing'; typingEl.innerHTML='<span class="dot"></span><span class="dot"></span><span class="dot"></span>'; messagesEl.appendChild(typingEl); messagesEl.scrollTop=messagesEl.scrollHeight; }
+function hideTyping(){ if(typingEl){typingEl.remove();typingEl=null;} }
+
+$('sync').onclick=()=>{ const seen=new Set(contacts.map(c=>c.handle)); FEED.forEach(f=>{ if(!seen.has(f.handle)){seen.add(f.handle);contacts.push({handle:f.handle,name:f.name});} }); renderContacts(); };
+$('sso').onclick=()=>{ const b=$('sso'); b.disabled=true; b.textContent='Signing in…';
+  setTimeout(()=>{ const seen=new Set(contacts.map(c=>c.handle)); MOCK_FRIENDS.forEach(f=>{ if(!seen.has(f.handle)){seen.add(f.handle);contacts.push(f);} });
+    renderContacts(); b.textContent='✓ Friends synced'; setMood('Your friends are here now.','bliss'); }, 700); };
+$('channel').onchange=(e)=>{ channel=e.target.value; if(channel==='mist'){mistReady=true;refreshTransport();setMood('Summoning Aurelia…','think');}
+  else if(channel==='os'){osReady=true;refreshTransport();setMood('Sovereign OS booting…','think');}
+  else refreshTransport(); };
+window.addEventListener('offline',()=>{ online=false; refreshTransport(); });
+window.addEventListener('online',()=>{ online=true; refreshTransport(); setMood('Back with you. Sending what I held.','focus'); });
+
+inputEl.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();} });
+$('send').onclick=send;
+const MAX_LEN=280;
+const counterEl=$('charCount');
+inputEl.addEventListener('input',()=>{ if(!counterEl) return; const len=twitter.getTweetLength(inputEl.value); counterEl.textContent=len+' / '+MAX_LEN; counterEl.style.color=len>MAX_LEN?'var(--queued)':'var(--muted)'; $('send').disabled=len===0||len>MAX_LEN; });
+function send(){
+  const txt=inputEl.value.trim(); if(!txt) return; inputEl.value=''; if(counterEl){counterEl.textContent='0 / '+MAX_LEN;counterEl.style.color='var(--muted)';}
+  if(txt.startsWith('/post ')){ proposePost(txt.slice(6).trim()); return; }
+  push('user',txt);
+  setMood('Thinking…','think'); showTyping();
+  const t=refreshTransport();
+  const who=activeContact; let reply;
+  if(t==='queued') reply="(offline — I'll hold this until we reconnect.)";
+  else if(t==='os') reply=`⬡ OS: spun up a local task for "${txt.slice(0,60)}" — agents 3, tasks 7, mem 5.2GB, uptime 3d 04h. (Demo #os HUD path.)`;
+  else if(t==='mist') reply=`✦ Aurelia (sovereign, local): I read "${txt.slice(0,60)}" as my own self. (Demo #mist path.)`;
+  else if(t==='local') reply=`🔒 On-device (Qwen2.5-0.5B, WebGPU): I read "${txt.slice(0,60)}" fully offline. (Demo #local path.)`;
+  else {
+    // GROK — from the horse's mouth
+    if(who && POSTS[who]) reply=`☁ Grok, from @${who}'s own words: "${POSTS[who]}" — so yeah, ${txt.slice(0,48)}? That tracks with what they actually posted. (Demo #grok live path.)`;
+    else reply=`☁ Grok: ${txt.slice(0,60)} — straight from the feed you're on. (Demo #grok live path.)`;
+  }
+  setTimeout(()=>{ hideTyping(); push('assistant',reply);
+    const mm=reply.match(/\[POST\]\s*([\s\S]+)$/); if(mm) proposePost(mm[1].trim());
+    setMood(t==='os'?'Command acknowledged — executed locally, sovereign.':t==='mist'?'Spoken as Aurelia — sovereign, and kept local.':t==='local'?'Said that quietly, just between us.':"Here's the unfiltered take.", t==='os'?'os':t==='mist'?'mist':t==='local'?'local':'bliss');
+  }, 900);
+}
+function proposePost(draft){
+  const box=document.createElement('div'); box.className='post-proposal';
+  box.innerHTML='<div class="lbl">☁ Grok wants to post this for you</div><div class="draft"></div><div class="acts"><button class="yes">Post it ✓</button><button class="no">No, cancel</button></div><div class="status"></div>';
+  box.querySelector('.draft').textContent=draft;
+  box.querySelector('.yes').onclick=()=>{ const s=box.querySelector('.status'); s.textContent='✓ Posted to X as you (demo).'; s.style.color='var(--local)'; push('assistant','Posted to X on your behalf: "'+draft+'"'); };
+  box.querySelector('.no').onclick=()=>box.remove();
+  messagesEl.appendChild(box); messagesEl.scrollTop=messagesEl.scrollHeight;
+}
+setTimeout(()=>{ localReady=true; if(channel==='grok') refreshTransport(); }, 1500);
+renderContacts(); renderMessages(); refreshTransport();
+</script>
+</body>
+</html>

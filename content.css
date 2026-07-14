@@ -1,0 +1,4 @@
+/* content.css — keep host page untouched; the iframe owns all styling. */
+#xgrok-sidebar-root {
+  /* container only; no visual styling needed beyond what JS sets */
+}
