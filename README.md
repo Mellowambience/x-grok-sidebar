@@ -5,6 +5,9 @@ It pins the tweet you’re reading, knows **who** you’re looking at, and talks
 
 > Cyberpunk glass HUD · rotating **Mars** orb · Star-Trek command deck · Grok hero + sovereign fallbacks.
 
+**[Steward Compatible v1.0](./STEWARD.md)** — reflection · assumption tracking · human override · evidence · growth memory · transparent uncertainty.  
+Protocol soil: [steward-protocol](https://github.com/Mellowambience/steward-protocol).
+
 **Version 0.5.0** — SSO-first: friends + gated post work with X Client ID alone. xAI key optional (cloud Grok). Icons, 280 post gate, editable drafts, origin-locked postMessage, grok-4 default.
 
 ---
