@@ -13,4 +13,4 @@ jobs:
         with:
           node-version: 20
       - name: Headless verification (syntax + manifest + router + post payload)
-        run: npm test
+        run: node verify.mjs
