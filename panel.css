@@ -160,6 +160,13 @@ body { display: flex; flex-direction: column; }
 }
 .post-proposal .lbl { font-size: 11px; text-transform: uppercase; letter-spacing: 0.7px; color: var(--neon); text-shadow: 0 0 8px rgba(var(--neon-rgb), 0.5); }
 .post-proposal .draft { margin: 6px 0 9px; line-height: 1.45; color: var(--text); white-space: pre-wrap; word-break: break-word; }
+.post-proposal .draft-edit {
+  width: 100%; box-sizing: border-box; margin: 6px 0 4px; padding: 8px 10px;
+  border-radius: 10px; border: 1px solid rgba(var(--neon-rgb), 0.35);
+  background: rgba(0,0,0,0.35); color: var(--text); font: inherit; line-height: 1.45;
+  resize: vertical; min-height: 64px;
+}
+.post-proposal .draft-count { text-align: right; font-size: 11px; color: var(--muted); margin-bottom: 6px; letter-spacing: 0.4px; }
 .post-proposal .acts { display: flex; gap: 8px; }
 .post-proposal button { flex: 1; border: 0; border-radius: 10px; padding: 8px; font: inherit; font-weight: 700; cursor: pointer; }
 .post-proposal .yes { background: linear-gradient(135deg, rgba(var(--neon-rgb), 0.95), rgba(var(--neon-rgb), 0.7)); color: #04060a; box-shadow: 0 0 14px rgba(var(--neon-rgb), 0.5); }

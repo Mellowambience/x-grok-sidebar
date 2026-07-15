@@ -1,24 +1,37 @@
 body {
-  width: 300px; padding: 14px; margin: 0;
+  width: 340px; padding: 14px; margin: 0;
   background: #000; color: #e7e9ea;
   font-family: -apple-system, "Segoe UI", Roboto, sans-serif; font-size: 13px;
 }
-h1 { font-size: 15px; margin: 0 0 10px; }
-label { display: block; margin: 10px 0 4px; color: #71767b; }
+h1 { font-size: 15px; margin: 0 0 6px; }
+.lead { color: #8b98a5; font-size: 11px; line-height: 1.45; margin: 0 0 12px; }
+.lead strong { color: #e7e9ea; }
+label { display: block; margin: 10px 0 4px; color: #71767b; font-size: 12px; }
 label:first-of-type { margin-top: 0; }
-input {
+.req { color: #f4212e; font-size: 10px; margin-left: 4px; }
+.opt { color: #536471; font-size: 10px; margin-left: 4px; }
+input, select {
   width: 100%; box-sizing: border-box; padding: 8px;
   background: #16181c; color: #e7e9ea; border: 1px solid #2f3336; border-radius: 8px;
 }
-.hint { color: #71767b; font-size: 11px; line-height: 1.45; margin: 10px 0 0; }
+.hint { color: #71767b; font-size: 11px; line-height: 1.5; margin: 12px 0 0; }
 .hint code {
+  display: inline; margin: 0; font-size: 10px; word-break: break-all;
+  color: #8b98a5; background: #16181c; padding: 1px 4px; border-radius: 3px;
+}
+#redir {
   display: block; margin-top: 4px; font-size: 10px; word-break: break-all;
   color: #8b98a5; background: #16181c; padding: 4px 6px; border-radius: 4px;
 }
 a { color: #1d9bf0; }
+.row { display: flex; gap: 6px; margin-top: 12px; }
 button {
-  margin-top: 12px; width: 100%; padding: 8px;
-  background: #1d9bf0; color: #fff; border: 0; border-radius: 8px; cursor: pointer; font-weight: 600;
+  flex: 1; padding: 8px; border: 0; border-radius: 8px; cursor: pointer; font-weight: 600;
+  background: #1d9bf0; color: #fff;
 }
+button.secondary { background: #00ba7c; }
+button.ghost { background: #2f3336; color: #e7e9ea; flex: 0.7; }
 button:disabled { opacity: 0.6; cursor: wait; }
-#status { margin-top: 8px; color: #00ba7c; font-size: 12px; min-height: 14px; }
+#status { margin-top: 8px; font-size: 12px; min-height: 16px; color: #8b98a5; }
+#status.ok { color: #00ba7c; }
+#status.err { color: #f4212e; }

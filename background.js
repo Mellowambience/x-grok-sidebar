@@ -199,17 +199,25 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return true;
   }
   if (msg.type === 'SSO_POST') {
-    // Gated in panel UI (propose → approve). Text length hard-capped here too.
+    // Gated in panel UI (propose → approve). Hard length gate (standard X posts = 280).
     getValidToken().then(async (token) => {
-      if (!token) return sendResponse({ ok: false, error: 'no token — sign in with X first' });
-      const text = String(msg.text || '').slice(0, 28000);
-      if (!text.trim()) return sendResponse({ ok: false, error: 'empty text' });
+      if (!token) {
+        return sendResponse({
+          ok: false,
+          error: 'no token — open popup → set Client ID → Sign in with X (no xAI key needed)'
+        });
+      }
+      const text = String(msg.text || '').trim();
+      if (!text) return sendResponse({ ok: false, error: 'empty text' });
+      // Weighted length is checked in panel via twitter-text; hard byte/char safety here.
+      if ([...text].length > 280) {
+        return sendResponse({ ok: false, error: 'text exceeds 280 characters (X post limit)' });
+      }
       const body = { text };
       if (msg.reply && msg.reply.in_reply_to_tweet_id) {
         const id = String(msg.reply.in_reply_to_tweet_id);
-        // Tweet ids are numeric snowflakes — reject obvious user-id mistakes if needed
         if (!/^\d{1,25}$/.test(id)) {
-          return sendResponse({ ok: false, error: 'invalid in_reply_to_tweet_id' });
+          return sendResponse({ ok: false, error: 'invalid in_reply_to_tweet_id (must be tweet snowflake, not user id)' });
         }
         body.reply = { in_reply_to_tweet_id: id };
       }

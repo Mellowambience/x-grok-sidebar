@@ -25,9 +25,13 @@ for (const f of JS_FILES) {
 try {
   const m = JSON.parse(readFileSync('manifest.json', 'utf8'));
   note(m.manifest_version === 3, 'manifest is MV3');
-  note(m.version === '0.4.0', 'manifest version 0.4.0');
+  note(m.version === '0.5.0', 'manifest version 0.5.0');
   note(Array.isArray(m.permissions) && m.permissions.includes('identity'), 'manifest requests identity');
+  note(!m.permissions.includes('scripting'), 'scripting permission dropped (least privilege)');
   note(m.host_permissions.includes('https://api.x.com/*'), 'host_permissions include api.x.com');
+  note(!m.host_permissions.includes('https://api.twitter.com/*'), 'legacy api.twitter.com host removed');
+  note(m.icons && m.icons['128'], 'manifest has icons');
+  note(readdirSync('icons').length >= 4, 'icons/ has size variants');
   note(readdirSync('lib/twitter-text').length > 0, 'vendored twitter-text present');
   note(
     m.web_accessible_resources?.[0]?.resources?.includes('panel.js'),
@@ -63,13 +67,26 @@ try {
   note(p.includes('users/') && p.includes('/tweets'), 'contact reply resolves latest tweet id');
   note(p.includes('SAFE_AVATAR') || p.includes('createElement(\'img\')'), 'safe avatar DOM');
   note(p.includes('pinnedTweet.text'), 'Grok receives pinned tweet text');
+  note(p.includes('grok-4-latest') || p.includes('grokModel'), 'uses grok-4 / model setting');
+  note(p.includes('draft-edit') || p.includes('textarea'), 'editable post proposal');
+  note(p.includes('isPageOrigin'), 'panel validates postMessage origin');
   const b = readFileSync('background.js', 'utf8');
   note(b.includes('xTokenEnc') || b.includes('encryptJSON'), 'background encrypts tokens');
   note(b.includes('xErrorMessage'), 'background parses X API errors');
+  note(b.includes('280'), 'background enforces 280 char post limit');
   const pop = readFileSync('popup.js', 'utf8');
   note(pop.includes('encryptSecret'), 'popup encrypts xAI key');
+  note(pop.includes('SSO_LOGIN'), 'popup can Sign in with X (SSO-first)');
 } catch (e) {
   note(false, 'source contract checks -> ' + e.message);
+}
+
+// 6b) post payload contract
+try {
+  execFileSync('node', ['verify_post_payload.mjs'], { stdio: 'pipe' });
+  note(true, 'verify_post_payload.mjs');
+} catch (e) {
+  note(false, 'verify_post_payload.mjs -> ' + (e.stdout || e.message).toString().slice(0, 120));
 }
 
 // 6) router cascade

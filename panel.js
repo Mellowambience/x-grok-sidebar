@@ -43,6 +43,7 @@ let pinnedTweet = null;
 let channel = 'grok';
 let messages = [];
 let xaiKey = '';
+let grokModel = 'grok-4-latest';
 let online = navigator.onLine;
 let queue = [];
 let localReady = false;
@@ -50,7 +51,7 @@ let flushing = false;
 
 // ---- bootstrap from encrypted store ----
 chrome.storage.local.get(
-  ['xaiKey', 'xaiKeyEnc', 'contactsEnc', 'messagesEnc', 'queueEnc', 'mistEndpoint', 'osEndpoint'],
+  ['xaiKey', 'xaiKeyEnc', 'contactsEnc', 'messagesEnc', 'queueEnc', 'mistEndpoint', 'osEndpoint', 'grokModel'],
   async (s) => {
     if (s.xaiKeyEnc) {
       xaiKey = await decryptSecret(s.xaiKeyEnc);
@@ -61,6 +62,7 @@ chrome.storage.local.get(
       await chrome.storage.local.set({ xaiKeyEnc: enc });
       await chrome.storage.local.remove('xaiKey');
     }
+    grokModel = s.grokModel || 'grok-4-latest';
     contacts = (await decryptJSON(s.contactsEnc)) || [];
     messages = (await decryptJSON(s.messagesEnc)) || [];
     queue = (await decryptJSON(s.queueEnc)) || [];
@@ -70,6 +72,14 @@ chrome.storage.local.get(
     renderMessages();
     probeMist().finally(() => probeOs().finally(refreshTransport));
     if (queue.length) flushQueue();
+    // SSO-only welcome: pin + post work without cloud key
+    if (!xaiKey && !messages.length) {
+      pushMessage(
+        'assistant',
+        'SSO-first mode: Sign in with X (Client ID in the toolbar popup) to sync friends and post with approval. ' +
+        'Cloud Grok needs an optional xAI key; until then use #mist / #local / #os, or /post a draft after you sign in.'
+      );
+    }
   }
 );
 
@@ -84,6 +94,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
       xaiKey = changes.xaiKey.newValue || '';
       refreshTransport();
     }
+    if (changes.grokModel?.newValue) grokModel = changes.grokModel.newValue;
     if (changes.mistEndpoint?.newValue) {
       setMistEndpoint(changes.mistEndpoint.newValue);
       probeMist().finally(refreshTransport);
@@ -95,18 +106,28 @@ chrome.storage.onChanged.addListener((changes, area) => {
   })();
 });
 
-// ---- SSO (X OAuth2 via background service worker) ----
+// ---- SSO (X OAuth2 via background service worker) — works without xAI key ----
 ssoBtn.addEventListener('click', async () => {
   ssoBtn.disabled = true;
   ssoBtn.textContent = 'Signing in…';
+  ssoBtn.title = '';
   const res = await chrome.runtime.sendMessage({ type: 'SSO_LOGIN' });
   if (res && res.ok) {
-    ssoBtn.textContent = '✓ Friends synced';
+    ssoBtn.textContent = '✓ Synced';
+    ssoBtn.disabled = false;
+    setMood('Signed in with X. Friends + gated /post ready — no xAI key required for that.', 'focus');
     fetchFriends();
   } else {
+    const err = (res && res.error) || 'SSO failed';
     ssoBtn.textContent = 'SSO failed — retry';
-    ssoBtn.title = (res && res.error) || '';
+    ssoBtn.title = err;
     ssoBtn.disabled = false;
+    setMood(
+      err.includes('Client ID')
+        ? 'Open the toolbar popup → paste X OAuth Client ID → Save → Sign in. xAI key is optional.'
+        : 'SSO: ' + err,
+      'drift'
+    );
   }
 });
 
@@ -237,12 +258,23 @@ window.addEventListener('online', () => {
 window.addEventListener('offline', () => { online = false; refreshTransport(); });
 
 // ---- cross-frame contacts + pin (from content.js on the X page) ----
+function hostTargetOrigin() {
+  try {
+    if (location.ancestorOrigins && location.ancestorOrigins[0]) return location.ancestorOrigins[0];
+  } catch { /* ignore */ }
+  return 'https://x.com';
+}
+function isPageOrigin(origin) {
+  return origin === 'https://x.com' || origin === 'https://twitter.com' ||
+    origin === 'https://www.x.com' || origin === 'https://www.twitter.com';
+}
 function postToHost(type, data = {}) {
   try {
-    window.parent.postMessage({ type, ...data }, '*');
+    window.parent.postMessage({ type, ...data }, hostTargetOrigin());
   } catch { /* ignore */ }
 }
 window.addEventListener('message', (e) => {
+  if (!isPageOrigin(e.origin)) return;
   const d = e.data || {};
   if (typeof d.type !== 'string' || !d.type.startsWith('XGROK_')) return;
   if (d.type === 'XGROK_CONTACTS' || d.type === 'XGROK_CONTACTS_LIVE') {
@@ -510,7 +542,11 @@ function contextMessages() {
 }
 
 async function askGrok(_userText) {
-  if (!xaiKey) throw new Error('no xAI key — open the extension popup and paste your key');
+  if (!xaiKey) {
+    throw new Error(
+      'no xAI key — optional for SSO (friends + /post). For cloud chat: popup → paste xAI key, or switch #mist / #local'
+    );
+  }
   let sys = 'You are Grok, embedded as a sidebar companion on X (Twitter). Be concise, witty, and useful. ' +
     'If the user wants you to draft a post they can approve, end with [POST] followed by the draft text.';
   if (pinnedTweet) {
@@ -530,7 +566,7 @@ async function askGrok(_userText) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + xaiKey },
     body: JSON.stringify({
-      model: 'grok-3-latest',
+      model: grokModel || 'grok-4-latest',
       messages: payloadMessages
     })
   });
@@ -563,6 +599,7 @@ async function flushQueue() {
 }
 
 // ---- Grok posting on your behalf (gated: Grok proposes, YOU approve) ----
+// Works with SSO alone — no xAI key required.
 function proposePost(draft) {
   const box = document.createElement('div');
   box.className = 'post-proposal';
@@ -571,10 +608,14 @@ function proposePost(draft) {
     : '';
   const lbl = document.createElement('div');
   lbl.className = 'lbl';
-  lbl.textContent = '☁ Grok wants to post this for you' + target;
-  const draftEl = document.createElement('div');
-  draftEl.className = 'draft';
-  draftEl.textContent = draft;
+  lbl.textContent = '☁ Draft ready for your approval' + target;
+  const draftEl = document.createElement('textarea');
+  draftEl.className = 'draft-edit';
+  draftEl.rows = 4;
+  draftEl.value = draft;
+  draftEl.setAttribute('maxlength', '280');
+  const countEl = document.createElement('div');
+  countEl.className = 'draft-count';
   const acts = document.createElement('div');
   acts.className = 'acts';
   const yes = document.createElement('button');
@@ -583,18 +624,28 @@ function proposePost(draft) {
   const no = document.createElement('button');
   no.className = 'no';
   no.textContent = 'No, cancel';
+  const refreshCount = () => {
+    const len = twitter.getTweetLength(draftEl.value);
+    countEl.textContent = len + ' / 280';
+    countEl.style.color = len > MAX_LEN ? 'var(--queued)' : 'var(--muted)';
+    yes.disabled = len === 0 || len > MAX_LEN;
+  };
   acts.appendChild(yes);
   acts.appendChild(no);
   const status = document.createElement('div');
   status.className = 'status';
   box.appendChild(lbl);
   box.appendChild(draftEl);
+  box.appendChild(countEl);
   box.appendChild(acts);
   box.appendChild(status);
-  yes.addEventListener('click', () => approvePost(draft, box));
+  draftEl.addEventListener('input', refreshCount);
+  refreshCount();
+  yes.addEventListener('click', () => approvePost(draftEl.value.trim(), box));
   no.addEventListener('click', () => { box.remove(); });
   messagesEl.appendChild(box);
   messagesEl.scrollTop = messagesEl.scrollHeight;
+  draftEl.focus();
 }
 
 async function approvePost(draft, box) {
@@ -603,9 +654,16 @@ async function approvePost(draft, box) {
   const no = box.querySelector('.no');
   yes.disabled = true;
   no.disabled = true;
+  const weighted = twitter.getTweetLength(draft);
+  if (!draft || weighted > MAX_LEN) {
+    status.textContent = '✗ Draft empty or over 280 (twitter-text weighted).';
+    status.style.color = 'var(--queued)';
+    yes.disabled = false;
+    no.disabled = false;
+    return;
+  }
   status.textContent = 'Posting…';
 
-  // Prefer pinned tweet id (real snowflake). Contact-only: fetch latest tweet id.
   const payload = { text: draft };
   let replyTarget = null;
 
@@ -630,7 +688,7 @@ async function approvePost(draft, box) {
             payload.reply = { in_reply_to_tweet_id: String(latest.id) };
             replyTarget = activeContact;
           } else {
-            status.textContent = 'No recent tweet from @' + activeContact + ' to reply to — posting standalone.';
+            status.textContent = 'No recent tweet from @' + activeContact + ' — posting standalone.';
           }
         }
       }
@@ -645,7 +703,7 @@ async function approvePost(draft, box) {
     status.style.color = 'var(--local)';
     pushMessage('assistant', 'Posted to X on your behalf: "' + draft + '"' + (replyTarget ? ' → @' + replyTarget : ''));
   } else {
-    status.textContent = '✗ ' + ((res && res.error) || 'post failed');
+    status.textContent = '✗ ' + ((res && res.error) || 'post failed — Sign in with X in the popup (Client ID, no xAI key needed)');
     status.style.color = 'var(--queued)';
     yes.disabled = false;
     no.disabled = false;

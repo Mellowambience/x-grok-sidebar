@@ -19,8 +19,9 @@ An open-source Chrome extension that puts **Grok on X's right rail as a persiste
 ## How to run it
 1. `git clone https://github.com/Mellowambience/x-grok-sidebar`
 2. `chrome://extensions` → Developer mode → Load unpacked → select the folder.
-3. Open on x.com, click the icon, paste your xAI key in the popup.
-4. *(Optional)* Sign in with X for friends + posting: register an app at developer.x.com, drop the Client ID into `background.js`, scopes `tweet.read users.read tweet.write offline.access`.
+3. Open x.com → toolbar popup → paste **X OAuth Client ID** → **Sign in with X**.
+4. *(Optional)* xAI key for live cloud Grok; MIST/OS for local fallbacks.
+5. `/post your text` → edit the draft card → **Post it ✓** (gated).
 
 ## Verification
 `node verify.mjs` — syntax-checks all JS, validates the manifest, and asserts the 4-channel router cascade. Runs automatically in CI on every PR.

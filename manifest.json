@@ -1,19 +1,29 @@
 {
   "manifest_version": 3,
   "name": "X Grok Sidebar — MIST-grade",
-  "version": "0.4.0",
-  "description": "Persistent Grok companion on X's right rail. Pin tweets, chat with Grok/MIST/local, gated post-on-behalf, sovereign fallbacks.",
+  "version": "0.5.0",
+  "description": "SSO-first Grok companion on X: pin tweets, friends, gated post-on-behalf. xAI key optional (cloud). Sovereign mist/local/os fallbacks.",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
   "action": {
     "default_popup": "popup.html",
-    "default_title": "X Grok Sidebar settings"
+    "default_title": "X Grok Sidebar settings",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png"
+    }
   },
-  "permissions": ["storage", "activeTab", "identity", "scripting"],
+  "permissions": ["storage", "activeTab", "identity"],
   "host_permissions": [
     "https://x.com/*",
     "https://twitter.com/*",
     "https://api.x.com/*",
     "https://api.x.ai/*",
-    "https://api.twitter.com/*",
     "http://localhost/*",
     "http://127.0.0.1/*",
     "https://huggingface.co/*",

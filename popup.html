@@ -6,20 +6,38 @@
 </head>
 <body>
   <h1>X Grok Sidebar</h1>
-  <label for="key">xAI API key</label>
-  <input id="key" type="password" placeholder="xai-..." autocomplete="off" />
-  <label for="client">X OAuth Client ID (optional, for sign-in / post)</label>
-  <input id="client" type="text" placeholder="from developer.x.com" autocomplete="off" />
+  <p class="lead">Usable with <strong>X SSO alone</strong>: friends, pin, gated post. xAI key is optional (cloud Grok only).</p>
+
+  <label for="client">X OAuth Client ID <span class="req">required for Sign in / post</span></label>
+  <input id="client" type="text" placeholder="from developer.x.com → your App → Client ID" autocomplete="off" />
+
+  <label for="key">xAI API key <span class="opt">optional · cloud #grok</span></label>
+  <input id="key" type="password" placeholder="xai-… (skip if using mist / local / post-only)" autocomplete="off" />
+
+  <label for="model">Grok model <span class="opt">when cloud key set</span></label>
+  <select id="model">
+    <option value="grok-4-latest">grok-4-latest</option>
+    <option value="grok-3-latest">grok-3-latest</option>
+  </select>
+
   <label for="mist">MIST endpoint (Aurelia)</label>
   <input id="mist" placeholder="http://localhost:7842" />
   <label for="os">OS endpoint (sovereign runtime)</label>
   <input id="os" placeholder="http://localhost:8742" />
+
   <p class="hint">
-    Key at <a href="https://console.x.ai" target="_blank" rel="noopener">console.x.ai</a>.
-    X app: redirect <code id="redir">https://&lt;ext-id&gt;.chromiumapp.org/</code>.
-    Secrets are AES-GCM wrapped in browser storage (profile is the trust boundary).
+    1) Create an X app at <a href="https://developer.x.com" target="_blank" rel="noopener">developer.x.com</a><br />
+    2) Type: <strong>Native App</strong> (public client / PKCE)<br />
+    3) Callback / redirect exactly:<br /><code id="redir">https://&lt;ext-id&gt;.chromiumapp.org/</code><br />
+    4) Scopes: <code>tweet.read users.read tweet.write offline.access</code><br />
+    5) Paste Client ID above → Save → Sign in with X.
   </p>
-  <button id="save">Save</button>
+
+  <div class="row">
+    <button id="save">Save</button>
+    <button id="signin" class="secondary">Sign in with X</button>
+    <button id="signout" class="ghost">Sign out</button>
+  </div>
   <div id="status"></div>
   <script type="module" src="popup.js"></script>
 </body>

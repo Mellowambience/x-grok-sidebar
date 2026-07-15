@@ -5,15 +5,16 @@ It pins the tweet you’re reading, knows **who** you’re looking at, and talks
 
 > Cyberpunk glass HUD · rotating **Mars** orb · Star-Trek command deck · Grok hero + sovereign fallbacks.
 
-**Version 0.4.0** — core loop finished: pin → chat → gated post, offline queue, encrypted secrets, local load-on-demand.
+**Version 0.5.0** — SSO-first: friends + gated post work with X Client ID alone. xAI key optional (cloud Grok). Icons, 280 post gate, editable drafts, origin-locked postMessage, grok-4 default.
 
 ---
 
 ## What it is
 
-- **Grok, hero.** Default channel is live Grok (`grok-3-latest` via xAI). Click any tweet to **pin** it; Grok answers with that text in context.
+- **Grok, hero.** Default channel is live Grok (`grok-4-latest` via xAI when a key is set). Click any tweet to **pin** it; Grok answers with that text in context.
+- **SSO-first.** Sign in with X (Client ID only) → sync friends, pin tweets, **post with your approval**. **No xAI key required** for those flows.
 - **Sovereign fallbacks.** Cascade: `#grok` (cloud) → `#mist` (Aurelia) → `#local` (on-device Qwen2.5-0.5B) → queue. `#os` is its own channel with HUD tiles.
-- **Post on your behalf — gated.** Grok *proposes*; **you approve**. (`/post <text>`, `/draft <idea>`, or `[POST] …` in a reply.) Replies use a real **tweet id** (pinned tweet, or latest from a focused contact).
+- **Post on your behalf — gated.** Draft card is **editable**; you approve. (`/post <text>`, `/draft <idea>`, or `[POST] …`.) Replies use a real **tweet id**.
 - **Offline queue.** If every channel is down, your message is held and flushed when a path returns.
 - **twitter-text.** Vendored from X’s open-source parser for the live 280 counter.
 
@@ -21,10 +22,11 @@ It pins the tweet you’re reading, knows **who** you’re looking at, and talks
 
 1. `chrome://extensions` → Developer mode → **Load unpacked** → this folder.
 2. Open `x.com` — the sidebar mounts on the right rail.
-3. Toolbar icon → popup:
-   - Paste **xAI API key** (required for live Grok)
-   - Optional: **X OAuth Client ID** (friends sync + posting)
-   - Optional: MIST / OS localhost endpoints
+3. Toolbar icon → popup (**SSO-first setup**):
+   - Paste **X OAuth Client ID** (required for Sign in / friends / post)
+   - Optional: **xAI API key** (only for live cloud Grok)
+   - Optional: Grok model, MIST / OS localhost endpoints
+   - Click **Save** → **Sign in with X**
 
 ### Sign in with X (friends + posting)
 

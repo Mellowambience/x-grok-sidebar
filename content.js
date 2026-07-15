@@ -84,9 +84,7 @@
   function postToPanel(msg) {
     try {
       if (frame.contentWindow) frame.contentWindow.postMessage(msg, EXT_ORIGIN);
-    } catch {
-      try { frame.contentWindow.postMessage(msg, '*'); } catch { /* ignore */ }
-    }
+    } catch { /* ignore — iframe may not be ready */ }
   }
 
   function parseTweetFromArticle(art) {
@@ -161,7 +159,8 @@
 
   window.addEventListener('message', (e) => {
     if (e.source !== frame.contentWindow) return;
-    // Accept only messages that look like ours
+    // Only accept messages from our extension panel origin
+    if (e.origin !== EXT_ORIGIN) return;
     const d = e.data || {};
     if (typeof d.type !== 'string' || !d.type.startsWith('XGROK_')) return;
 
