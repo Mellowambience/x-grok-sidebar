@@ -238,7 +238,7 @@ const FEED = [
   {name:'Amara',handle:'GoddessAther',body:'building local + private, no clouds touching my soul code.'}
 ];
 const POSTS = Object.fromEntries(FEED.map(f=>[f.handle,f.body]));
-let contacts=[], activeContact=null, channel='grok', messages=[], online=true;
+let contacts=[], activeContact=null, channel='grok', messages=[], online=true, pinnedTweet=null;
 let hasCloudKey=true, localReady=false, mistReady=false, osReady=false;
 const $=(id)=>document.getElementById(id);
 const feedEl=$('feed'), contactListEl=$('contactList'), messagesEl=$('messages'),
@@ -350,12 +350,10 @@ function send(){
 }
 function proposePost(draft){
   const box=document.createElement('div'); box.className='post-proposal';
-  box.innerHTML='<div class="lbl">☁ Grok wants to post this for you</div><div class="draft"></div><div class="acts"><button class="yes">Post it ✓</button><button class="no">No, cancel</button></div><div class="status"></div>';
+  const target=pinnedTweet?` (reply to @${pinnedTweet.handle||pinnedTweet.tweetId})`:(activeContact?` (reply to @${activeContact})`:'');
+  box.innerHTML='<div class="lbl">☁ Grok wants to post this for you'+target+'</div><div class="draft"></div><div class="acts"><button class="yes">Post it ✓</button><button class="no">No, cancel</button></div><div class="status"></div>';
   box.querySelector('.draft').textContent=draft;
-  box.querySelector('.yes').onclick=()=>{ const s=box.querySelector('.status'); s.textContent='✓ Posted to X as you (demo).'; s.style.color='var(--local)'; push('assistant','Posted to X on your behalf: "'+draft+'"'); };
-  box.querySelector('.no').onclick=()=>box.remove();
-  messagesEl.appendChild(box); messagesEl.scrollTop=messagesEl.scrollHeight;
-}
+  box.querySelector('.yes').onclick=()=>{ const s=box.querySelector('.status'); s.textContent='✓ Posted to X as you (demo).'; s.style.color='var(--local)'; push('assistant','Posted to X on your behalf: "'+draft+'"'+(pinnedTweet?' → @'+(pinnedTweet.handle||pinnedTweet.tweetId):(activeContact?' → @'+activeContact:''))+'); };\n  box.querySelector('.no').onclick=()=>box.remove();\n  messagesEl.appendChild(box); messagesEl.scrollTop=messagesEl.scrollHeight;\n}
 setTimeout(()=>{ localReady=true; if(channel==='grok') refreshTransport(); }, 1500);
 renderContacts(); renderMessages(); refreshTransport();
 </script>

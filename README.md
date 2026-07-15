@@ -1,65 +1,82 @@
 # X Grok Sidebar — MIST-grade
 
-A persistent **Grok** companion living on X's right rail, built as a Manifest V3 Chrome extension.
-It reads the page you're on, knows **who** you're looking at, and talks to you like a presence — not a dashboard.
+A persistent **Grok** companion on X’s right rail (Chrome Manifest V3).
+It pins the tweet you’re reading, knows **who** you’re looking at, and talks like a presence — not a dashboard.
 
-> Cyberpunk glass HUD · rotating **Mars** orb · Star-Trek command-deck console · Grok as the hero, with sovereign fallbacks.
+> Cyberpunk glass HUD · rotating **Mars** orb · Star-Trek command deck · Grok hero + sovereign fallbacks.
+
+**Version 0.4.0** — core loop finished: pin → chat → gated post, offline queue, encrypted secrets, local load-on-demand.
 
 ---
 
 ## What it is
 
-- **Grok, hero.** The default channel is live Grok (`grok-3-latest` via xAI). Real Grok logo mark, Grok's own voice, and Grok reads the X circle with you — click any tweet to pin it and he answers *from the horse's mouth*.
-- **Sovereign fallbacks.** Cascade: `#grok` (cloud) → `#mist` (Aurelia, your local soul) → `#local` (on-device Qwen2.5-0.5B) → `#os` (your sovereign OS). If the cloud drops, you never go dark.
-- **Post on your behalf — gated.** Grok *proposes* a tweet; **you approve** it. Nothing posts to X without your click. (`/post <text>`, or Grok ending a reply with `[POST] …`.)
-- **Cherry-picked from `github.com/twitter`.** The vendored `lib/twitter-text` is X's own open-source tweet parser (powers x.com's character counter). Used for the live char counter + handle extraction.
-
-## Visuals (it's fly)
-
-- Rotating **Mars** orb with drifting terminator shadow + channel-tinted aura
-- Neon scan-grid, CRT scanlines, chromatic-aberration brand glitch
-- Spinning conic neon frame around the whole sidebar (per channel: Grok amber / MIST purple / OS cyan / local green)
-- **Boot sequence** — neon type-on ("INITIALIZING SOVEREIGN LINK…")
-- Drifting starfield, transmit ripple from Mars on send, frame flash on channel switch
-- **Star-Trek command-deck console** at the bottom: sweep readout, PORT/STBD/CORE status lights, slanted **ENGAGE** key, `CMD · GROK LINK` tag
+- **Grok, hero.** Default channel is live Grok (`grok-3-latest` via xAI). Click any tweet to **pin** it; Grok answers with that text in context.
+- **Sovereign fallbacks.** Cascade: `#grok` (cloud) → `#mist` (Aurelia) → `#local` (on-device Qwen2.5-0.5B) → queue. `#os` is its own channel with HUD tiles.
+- **Post on your behalf — gated.** Grok *proposes*; **you approve**. (`/post <text>`, `/draft <idea>`, or `[POST] …` in a reply.) Replies use a real **tweet id** (pinned tweet, or latest from a focused contact).
+- **Offline queue.** If every channel is down, your message is held and flushed when a path returns.
+- **twitter-text.** Vendored from X’s open-source parser for the live 280 counter.
 
 ## Install (load unpacked)
 
-1. `chrome://extensions` → Developer mode → **Load unpacked** → select this folder.
-2. Click the toolbar icon on `x.com` / `twitter.com`.
-3. Open the popup → paste your **xAI key** (for Grok), and set MIST/OS endpoints if you run them locally.
+1. `chrome://extensions` → Developer mode → **Load unpacked** → this folder.
+2. Open `x.com` — the sidebar mounts on the right rail.
+3. Toolbar icon → popup:
+   - Paste **xAI API key** (required for live Grok)
+   - Optional: **X OAuth Client ID** (friends sync + posting)
+   - Optional: MIST / OS localhost endpoints
 
-### Sign in with X (optional, for friends + posting)
+### Sign in with X (friends + posting)
 
-- Register an app at developer.x.com, add the redirect URI `https://<ext-id>.chromiumapp.org/`, and put the **Client ID** in `background.js` (`CLIENT_ID`).
-- Required scopes: `tweet.read users.read tweet.write offline.access`.
-- After sign-in, your circle auto-syncs and Grok can post **with your approval**.
+1. Create an app at [developer.x.com](https://developer.x.com).
+2. Add the redirect URI shown in the popup (`https://<ext-id>.chromiumapp.org/`).
+3. Scopes: `tweet.read users.read tweet.write offline.access`.
+4. Paste **Client ID** in the popup → Save → **Sign in w/ X** in the sidebar.
 
-> No credentials are ever stored in code. The xAI key and X token live in `chrome.storage.local`, encrypted at rest (see `crypto.js`).
+### Security (honest)
 
-## Architecture (MV3-clean)
+- No secrets are committed to the repo.
+- xAI key and X tokens are **AES-GCM wrapped** in `chrome.storage.local` (see `crypto.js` / `background.js`).
+- The AES key also lives in that store — **the browser profile is the real trust boundary**, not a separate HSM. This stops casual dumps/backups from showing plaintext keys; it does not stop malware with extension-storage access.
+- Chat, contacts, and the offline queue are encrypted the same way.
+- Nothing posts to X without an explicit **Post it ✓** click.
+
+## Architecture
 
 | File | Role |
 |---|---|
-| `manifest.json` | MV3, widened to x.com/twitter.com, no remotely-hosted code |
-| `background.js` | Service worker — X OAuth2 PKCE + token refresh + gated `SSO_POST` only |
-| `content.js` | Scrapes the live X circle (real `[data-testid="User-Name"]`) → panel |
-| `panel.*` | The HUB+HUD UI (glass, Mars, command deck) |
+| `manifest.json` | MV3, host permissions, web-accessible panel modules |
+| `background.js` | OAuth2 PKCE, token refresh, encrypted token store, gated `SSO_POST` |
+| `content.js` | Right-rail iframe, contact scrape, **click-to-pin** tweet (+ text) |
+| `panel.*` | HUB + HUD UI, routing, chat, post approval |
 | `router.mjs` | `decideTransport()` cascade |
-| `mist.js` / `os.js` | Bridges to your local Aurelia / sovereign OS |
-| `localmodel.js` | On-device Qwen2.5-0.5B (transformers.js, WebGPU→WASM) |
-| `crypto.js` | AES-GCM at rest |
-| `lib/twitter-text` | **Vendored** from github.com/twitter — tweet parser |
-| `lib/transformers.js` | Vendored transformers.js (weights stream from HF at runtime — data, not code) |
+| `mist.js` / `os.js` | Local Aurelia / sovereign OS bridges |
+| `localmodel.js` | On-device Qwen (WebGPU → WASM), load-on-demand |
+| `crypto.js` | AES-GCM helpers for secrets + local data |
+| `lib/twitter-text` | Vendored tweet length / entities |
+| `lib/transformers.js` | Vendored transformers.js (weights from HF at runtime) |
 
 ## Commands
 
-- `/post <text>` — Grok drafts a post; you approve before it goes to X.
-- `/draft <idea>` — same, prefixed with ☁.
-- If a contact is **focused** (clicked), an approved post is sent as a **reply** to them.
+| Command | Effect |
+|---|---|
+| `/post <text>` | Propose a post; approve to publish |
+| `/draft <idea>` | Same, with ☁ prefix |
+| Click a tweet | Pin it (amber outline) for context + reply target |
+| Channel select | `#grok` / `#local` / `#mist` / `#os` |
+| Hide `—` | Collapse the rail (state remembered) |
+
+## Verify (headless)
+
+```bash
+npm test
+# or: node verify.mjs && node verify_bitchat_fallback.mjs && node verify_post_payload.mjs
+```
+
+CI: `.github/workflows/verify.yml` on push/PR.
 
 ## Status
 
-Functional scaffold, headlessly verified (syntax + router logic + twitter-text). Visuals verified structurally (no headless Chrome in the build env). The real Grok path needs your xAI key; MIST/OS paths need your local endpoints; X posting needs an X OAuth app.
+**0.4.0 — usable companion loop.** Headlessly verified (syntax, manifest, router, post-payload contracts). Visuals need a real Chrome load on `x.com`. Live Grok needs your xAI key; posting needs an X OAuth app; MIST/OS need your local servers; on-device model downloads weights from Hugging Face on first use.
 
-Built for review by @Mellowambience. Fly responsibly. 🚀
+Built for @Mellowambience. Fly responsibly.

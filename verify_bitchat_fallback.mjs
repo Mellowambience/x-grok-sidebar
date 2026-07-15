@@ -1,22 +1,25 @@
 // Headless verification of the bitchat-style transport router.
-// No browser needed — stub nothing, just assert the pure decision logic.
 import { decideTransport } from './router.mjs';
 
 const cases = [
-  // online + cloud key + grok channel + local available  -> cloud (preferred)
+  // online + cloud key + grok channel + local available  -> cloud
   [{ online: true, hasCloudKey: true, channel: 'grok', localReady: true }, 'cloud'],
-  // cloud key missing, local ready                       -> local fallback (BLE->Nostr)
+  // cloud key missing, local ready                       -> local
   [{ online: true, hasCloudKey: false, channel: 'grok', localReady: true }, 'local'],
-  // offline, local ready, grok channel                   -> local (on-device works w/o net, bitchat-style)
+  // offline, local ready, grok channel                   -> local
   [{ online: false, hasCloudKey: false, channel: 'grok', localReady: true }, 'local'],
-  // offline, NO local, grok channel                      -> queued (true store-and-forward)
+  // offline, NO local, grok channel                      -> queued
   [{ online: false, hasCloudKey: false, channel: 'grok', localReady: false }, 'queued'],
-  // no cloud key, no local, online                       -> queued (nothing to route)
+  // no cloud key, no local, online                       -> queued
   [{ online: true, hasCloudKey: false, channel: 'grok', localReady: false }, 'queued'],
-  // #local channel, local ready                          -> local (private mesh)
+  // #local channel always routes local (load-on-demand)
   [{ online: true, hasCloudKey: true, channel: 'local', localReady: true }, 'local'],
-  // #local channel, local NOT ready                      -> queued
-  [{ online: true, hasCloudKey: true, channel: 'local', localReady: false }, 'queued']
+  [{ online: true, hasCloudKey: true, channel: 'local', localReady: false }, 'local'],
+  // mist / os
+  [{ online: true, hasCloudKey: true, channel: 'mist', mistReady: true, localReady: false }, 'mist'],
+  [{ online: true, hasCloudKey: true, channel: 'mist', mistReady: false, localReady: true }, 'local'],
+  [{ online: true, hasCloudKey: true, channel: 'os', osReady: true }, 'os'],
+  [{ online: true, hasCloudKey: true, channel: 'os', osReady: false, mistReady: true }, 'mist'],
 ];
 
 let pass = 0;

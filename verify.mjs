@@ -4,25 +4,75 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync, readdirSync } from 'node:fs';
 import { decideTransport } from './router.mjs';
 
-const JS_FILES = ['content.js', 'background.js', 'crypto.js', 'localmodel.js', 'panel.js', 'mist.js', 'os.js', 'popup.js'];
+const JS_FILES = [
+  'content.js', 'background.js', 'crypto.js', 'localmodel.js',
+  'panel.js', 'mist.js', 'os.js', 'popup.js', 'router.mjs'
+];
 let failures = 0;
 const note = (ok, msg) => { if (!ok) failures++; console.log((ok ? 'PASS' : 'FAIL') + '  ' + msg); };
 
 // 1) syntax check
 for (const f of JS_FILES) {
-  try { execFileSync('node', ['--check', f], { stdio: 'pipe' }); note(true, 'syntax ' + f); }
-  catch (e) { note(false, 'syntax ' + f + ' -> ' + e.message.split('\n')[0]); }
+  try {
+    execFileSync('node', ['--check', f], { stdio: 'pipe' });
+    note(true, 'syntax ' + f);
+  } catch (e) {
+    note(false, 'syntax ' + f + ' -> ' + e.message.split('\n')[0]);
+  }
 }
 
 // 2) manifest valid + MV3 shape
 try {
   const m = JSON.parse(readFileSync('manifest.json', 'utf8'));
   note(m.manifest_version === 3, 'manifest is MV3');
+  note(m.version === '0.4.0', 'manifest version 0.4.0');
   note(Array.isArray(m.permissions) && m.permissions.includes('identity'), 'manifest requests identity');
+  note(m.host_permissions.includes('https://api.x.com/*'), 'host_permissions include api.x.com');
   note(readdirSync('lib/twitter-text').length > 0, 'vendored twitter-text present');
-} catch (e) { note(false, 'manifest parse -> ' + e.message); }
+  note(
+    m.web_accessible_resources?.[0]?.resources?.includes('panel.js'),
+    'panel.js is web-accessible for iframe modules'
+  );
+} catch (e) {
+  note(false, 'manifest parse -> ' + e.message);
+}
 
-// 3) router cascade (matches current decideTransport signature)
+// 3) panel.html has .sidebar shell (neon frame + flash)
+try {
+  const html = readFileSync('panel.html', 'utf8');
+  note(html.includes('class="sidebar"'), 'panel.html wraps UI in .sidebar');
+  note(html.includes('id="toggle"'), 'panel has toggle control');
+} catch (e) {
+  note(false, 'panel.html -> ' + e.message);
+}
+
+// 4) content.js pin + click wiring
+try {
+  const c = readFileSync('content.js', 'utf8');
+  note(c.includes('XGROK_PINNED_TWEET'), 'content posts pinned tweet events');
+  note(c.includes('parseTweetFromArticle') || c.includes('resolveFocusedTweet'), 'content can resolve tweet ids');
+  note(c.includes('xgrok-pinned'), 'content marks pinned articles');
+} catch (e) {
+  note(false, 'content.js checks -> ' + e.message);
+}
+
+// 5) panel queue + encrypt secrets + reply safety
+try {
+  const p = readFileSync('panel.js', 'utf8');
+  note(p.includes('enqueue('), 'panel implements offline enqueue');
+  note(p.includes('users/') && p.includes('/tweets'), 'contact reply resolves latest tweet id');
+  note(p.includes('SAFE_AVATAR') || p.includes('createElement(\'img\')'), 'safe avatar DOM');
+  note(p.includes('pinnedTweet.text'), 'Grok receives pinned tweet text');
+  const b = readFileSync('background.js', 'utf8');
+  note(b.includes('xTokenEnc') || b.includes('encryptJSON'), 'background encrypts tokens');
+  note(b.includes('xErrorMessage'), 'background parses X API errors');
+  const pop = readFileSync('popup.js', 'utf8');
+  note(pop.includes('encryptSecret'), 'popup encrypts xAI key');
+} catch (e) {
+  note(false, 'source contract checks -> ' + e.message);
+}
+
+// 6) router cascade
 const cases = [
   [{ online: true, hasCloudKey: true, channel: 'grok', localReady: true, mistReady: true, osReady: true }, 'cloud'],
   [{ online: true, hasCloudKey: false, channel: 'grok', localReady: true, mistReady: false, osReady: false }, 'local'],
@@ -32,8 +82,11 @@ const cases = [
   [{ online: true, hasCloudKey: true, channel: 'mist', localReady: true, mistReady: false, osReady: false }, 'local'],
   [{ online: true, hasCloudKey: true, channel: 'os', localReady: true, mistReady: true, osReady: true }, 'os'],
   [{ online: true, hasCloudKey: true, channel: 'os', localReady: true, mistReady: true, osReady: false }, 'mist'],
+  // #local always attempts local (load-on-demand), even if not yet ready
+  [{ online: true, hasCloudKey: true, channel: 'local', localReady: false, mistReady: true, osReady: true }, 'local'],
   [{ online: true, hasCloudKey: true, channel: 'local', localReady: true, mistReady: true, osReady: true }, 'local'],
   [{ online: true, hasCloudKey: true, channel: 'grok', localReady: false, mistReady: true, osReady: false }, 'cloud'],
+  [{ online: true, hasCloudKey: false, channel: 'grok', localReady: false, mistReady: true, osReady: false }, 'mist'],
 ];
 for (const [input, expected] of cases) {
   const got = decideTransport(input);

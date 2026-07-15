@@ -12,5 +12,5 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Headless verification (syntax + manifest + router cascade)
-        run: node verify.mjs
+      - name: Headless verification (syntax + manifest + router + post payload)
+        run: npm test

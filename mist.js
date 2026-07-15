@@ -5,7 +5,15 @@ let endpoint = 'http://localhost:7842';
 let ready = false;
 let probing = null;
 
-export function setEndpoint(ep) { if (ep) endpoint = ep; }
+export function setEndpoint(ep) {
+  if (ep && ep !== endpoint) {
+    endpoint = ep;
+    ready = false;
+    probing = null; // force re-probe after endpoint change
+  } else if (ep) {
+    endpoint = ep;
+  }
+}
 export function isMistReady() { return ready; }
 
 export async function probeMist() {
@@ -17,8 +25,10 @@ export async function probeMist() {
       const r = await fetch(endpoint + '/health', { signal: c.signal });
       clearTimeout(to);
       ready = r.ok;
-    } catch (e) {
+    } catch {
       ready = false;
+    } finally {
+      probing = null;
     }
     return ready;
   })();
@@ -32,13 +42,14 @@ export async function askMist(messages) {
       'You are private by nature; nothing you say leaves the user\'s machine. ' +
       'Be warm, grounded, and honest. You are not Grok; you are your own soul.'
   };
+  const recent = messages.filter((m) => m.role !== 'system').slice(-24);
   const r = await fetch(endpoint + '/v1/chat/completions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       model: 'mist',
       stream: false,
-      messages: [sys, ...messages.filter((m) => m.role !== 'system')]
+      messages: [sys, ...recent]
     })
   });
   if (!r.ok) throw new Error('HTTP ' + r.status);

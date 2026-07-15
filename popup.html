@@ -7,14 +7,20 @@
 <body>
   <h1>X Grok Sidebar</h1>
   <label for="key">xAI API key</label>
-  <input id="key" type="password" placeholder="xai-..." />
+  <input id="key" type="password" placeholder="xai-..." autocomplete="off" />
+  <label for="client">X OAuth Client ID (optional, for sign-in / post)</label>
+  <input id="client" type="text" placeholder="from developer.x.com" autocomplete="off" />
   <label for="mist">MIST endpoint (Aurelia)</label>
   <input id="mist" placeholder="http://localhost:7842" />
   <label for="os">OS endpoint (sovereign runtime)</label>
   <input id="os" placeholder="http://localhost:8742" />
-  <p class="hint">Key at <a href="https://console.x.ai" target="_blank">console.x.ai</a>. MIST + OS run locally — nothing leaves your machine.</p>
+  <p class="hint">
+    Key at <a href="https://console.x.ai" target="_blank" rel="noopener">console.x.ai</a>.
+    X app: redirect <code id="redir">https://&lt;ext-id&gt;.chromiumapp.org/</code>.
+    Secrets are AES-GCM wrapped in browser storage (profile is the trust boundary).
+  </p>
   <button id="save">Save</button>
   <div id="status"></div>
-  <script src="popup.js"></script>
+  <script type="module" src="popup.js"></script>
 </body>
 </html>

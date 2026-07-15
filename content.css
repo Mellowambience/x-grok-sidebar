@@ -1,4 +1,13 @@
-/* content.css — keep host page untouched; the iframe owns all styling. */
+/* content.css — keep host page untouched; pin highlight only. */
 #xgrok-sidebar-root {
-  /* container only; no visual styling needed beyond what JS sets */
+  /* container only; layout set in content.js */
+}
+
+/* Subtle pin highlight on the tweet Grok is watching */
+article.xgrok-pinned {
+  outline: 2px solid rgba(255, 176, 122, 0.85) !important;
+  outline-offset: 2px;
+  border-radius: 12px;
+  box-shadow: 0 0 0 4px rgba(255, 176, 122, 0.12), 0 0 24px rgba(255, 176, 122, 0.18);
+  transition: outline-color 0.2s ease, box-shadow 0.2s ease;
 }

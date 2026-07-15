@@ -1,7 +1,7 @@
-// AES-GCM at-rest encryption for the local message/contact store.
-// bitchat uses Noise (mesh) / NIP-17 (Nostr) for transit E2E; we apply the same
-// "everything encrypted by default" spirit to on-device persistence. Transit to
-// Grok is TLS; the #local channel never leaves the device at all.
+// AES-GCM at-rest encryption for secrets + local message/contact store.
+// Trust boundary is the browser profile (chrome.storage.local). The AES key
+// lives in the same store — this obfuscates secrets from casual dumps / backups,
+// not from malware with extension-storage access. Document that honestly.
 const KEY_NAME = 'xgrok_enc_key';
 let cachedKey = null;
 
@@ -31,8 +31,26 @@ export async function encryptJSON(obj) {
 
 export async function decryptJSON(payload) {
   if (!payload || !payload.ct) return null;
-  const key = await getKey();
-  const buf = await crypto.subtle.decrypt(
-    { name: 'AES-GCM', iv: new Uint8Array(payload.iv) }, key, new Uint8Array(payload.ct));
-  return JSON.parse(new TextDecoder().decode(buf));
+  try {
+    const key = await getKey();
+    const buf = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv: new Uint8Array(payload.iv) }, key, new Uint8Array(payload.ct));
+    return JSON.parse(new TextDecoder().decode(buf));
+  } catch {
+    return null;
+  }
+}
+
+/** Encrypt a string secret (xAI key, etc.). Returns null for empty. */
+export async function encryptSecret(plain) {
+  if (plain == null || plain === '') return null;
+  return encryptJSON({ v: String(plain) });
+}
+
+/** Decrypt a secret payload; supports legacy plaintext string values. */
+export async function decryptSecret(payloadOrPlain) {
+  if (payloadOrPlain == null || payloadOrPlain === '') return '';
+  if (typeof payloadOrPlain === 'string') return payloadOrPlain; // legacy plaintext
+  const obj = await decryptJSON(payloadOrPlain);
+  return (obj && typeof obj.v === 'string') ? obj.v : '';
 }

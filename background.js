@@ -1,8 +1,12 @@
-// MV3 service worker — owns SSO (X OAuth2 + PKCE) and token persistence only.
-// Per the build skill: background persists; it does NOT re-forward UI messages.
+// MV3 service worker — owns SSO (X OAuth2 + PKCE), token persistence, gated post.
+// Tokens are AES-GCM wrapped in chrome.storage.local (same key material as crypto.js).
+// Classic SW script (not ES module) so we keep AES helpers inline.
+
 const REDIRECT = chrome.identity.getRedirectURL(); // https://<ext-id>.chromiumapp.org/
-const CLIENT_ID = 'REPLACE_WITH_YOUR_X_OAUTH2_CLIENT_ID'; // register at developer.x.com
+// Prefer CLIENT_ID from storage (set in popup). Fallback constant for forks.
+const DEFAULT_CLIENT_ID = 'REPLACE_WITH_YOUR_X_OAUTH2_CLIENT_ID';
 const SCOPES = 'tweet.read users.read tweet.write offline.access';
+const KEY_NAME = 'xgrok_enc_key';
 
 function b64url(buf) {
   return btoa(String.fromCharCode(...new Uint8Array(buf)))
@@ -18,7 +22,82 @@ function randomB64url(bytes) {
   return b64url(a);
 }
 
+async function getAesKey() {
+  const s = await chrome.storage.local.get(KEY_NAME);
+  if (s[KEY_NAME]) {
+    return crypto.subtle.importKey(
+      'raw', Uint8Array.from(atob(s[KEY_NAME]), (c) => c.charCodeAt(0)),
+      'AES-GCM', false, ['encrypt', 'decrypt']);
+  }
+  const k = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, true, ['encrypt', 'decrypt']);
+  const raw = new Uint8Array(await crypto.subtle.exportKey('raw', k));
+  await chrome.storage.local.set({ [KEY_NAME]: btoa(String.fromCharCode(...raw)) });
+  return k;
+}
+
+async function encryptJSON(obj) {
+  const key = await getAesKey();
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const data = new TextEncoder().encode(JSON.stringify(obj));
+  const buf = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, data);
+  return { iv: Array.from(iv), ct: Array.from(new Uint8Array(buf)) };
+}
+
+async function decryptJSON(payload) {
+  if (!payload || !payload.ct) return null;
+  try {
+    const key = await getAesKey();
+    const buf = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv: new Uint8Array(payload.iv) }, key, new Uint8Array(payload.ct));
+    return JSON.parse(new TextDecoder().decode(buf));
+  } catch {
+    return null;
+  }
+}
+
+async function loadToken() {
+  const s = await chrome.storage.local.get(['xTokenEnc', 'xToken']);
+  if (s.xTokenEnc) {
+    const t = await decryptJSON(s.xTokenEnc);
+    if (t) return t;
+  }
+  // legacy plaintext migration
+  if (s.xToken) {
+    await saveToken(s.xToken);
+    await chrome.storage.local.remove('xToken');
+    return s.xToken;
+  }
+  return null;
+}
+
+async function saveToken(tok) {
+  const enc = await encryptJSON(tok);
+  await chrome.storage.local.set({ xTokenEnc: enc });
+  await chrome.storage.local.remove('xToken');
+}
+
+async function getClientId() {
+  const s = await chrome.storage.local.get('xClientId');
+  const id = (s.xClientId || DEFAULT_CLIENT_ID || '').trim();
+  return id;
+}
+
+function xErrorMessage(j, status) {
+  if (!j) return 'HTTP ' + status;
+  if (typeof j.error === 'string') return j.error;
+  if (j.detail) return String(j.detail);
+  if (Array.isArray(j.errors) && j.errors.length) {
+    return j.errors.map((e) => e.detail || e.message || e.title || JSON.stringify(e)).join('; ');
+  }
+  if (j.title) return j.title;
+  return 'HTTP ' + status;
+}
+
 async function ssoLogin() {
+  const CLIENT_ID = await getClientId();
+  if (!CLIENT_ID || CLIENT_ID.startsWith('REPLACE_WITH')) {
+    throw new Error('Set your X OAuth Client ID in the extension popup first.');
+  }
   const state = randomB64url(16);
   const verifier = randomB64url(64);
   const challenge = await sha256B64url(verifier);
@@ -52,25 +131,23 @@ async function ssoLogin() {
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body
   });
-  if (!r.ok) throw new Error('Token exchange failed ' + r.status);
-  const tok = await r.json();
-  // offline.access scope grants refresh_token; stamp obtained_at for expiry math
-  await chrome.storage.local.set({ xToken: { ...tok, obtained_at: Date.now() } });
+  const tok = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error('Token exchange failed: ' + xErrorMessage(tok, r.status));
+  await saveToken({ ...tok, obtained_at: Date.now() });
   return { ok: true, hasToken: true };
 }
 
-// --- SSO token refresh (X access tokens expire ~2h; refresh_token ~30d) ---
 async function getValidToken() {
-  const s = await chrome.storage.local.get('xToken');
-  const t = s.xToken;
+  const t = await loadToken();
   if (!t) return null;
   const expAt = (t.obtained_at || 0) + (t.expires_in || 7200) * 1000;
-  if (Date.now() < expAt - 30000) return t.access_token; // 30s skew
+  if (Date.now() < expAt - 30000) return t.access_token;
   if (t.refresh_token) return ssoRefresh(t.refresh_token);
   return null;
 }
 
 async function ssoRefresh(refresh) {
+  const CLIENT_ID = await getClientId();
   const body = new URLSearchParams({
     grant_type: 'refresh_token',
     refresh_token: refresh,
@@ -81,41 +158,72 @@ async function ssoRefresh(refresh) {
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body
   });
-  if (!r.ok) throw new Error('Token refresh failed ' + r.status);
-  const tok = await r.json();
-  await chrome.storage.local.set({ xToken: { ...tok, obtained_at: Date.now() } });
-  return tok.access_token;
+  const tok = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error('Token refresh failed: ' + xErrorMessage(tok, r.status));
+  // Preserve refresh_token if API omits it on refresh
+  const prev = await loadToken();
+  const merged = {
+    ...tok,
+    refresh_token: tok.refresh_token || prev?.refresh_token || refresh,
+    obtained_at: Date.now()
+  };
+  await saveToken(merged);
+  return merged.access_token;
+}
+
+function isExtensionSender(sender) {
+  // Only accept messages from our own extension pages / content scripts
+  return !!(sender && sender.id === chrome.runtime.id);
 }
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (!isExtensionSender(sender)) {
+    sendResponse({ ok: false, error: 'unauthorized' });
+    return false;
+  }
+
   if (msg.type === 'SSO_LOGIN') {
     ssoLogin().then(sendResponse).catch((e) => sendResponse({ ok: false, error: e.message }));
     return true;
   }
   if (msg.type === 'SSO_STATUS') {
-    chrome.storage.local.get('xToken', (s) => sendResponse({ hasToken: !!s.xToken }));
+    loadToken().then((t) => sendResponse({ hasToken: !!t })).catch(() => sendResponse({ hasToken: false }));
     return true;
   }
   if (msg.type === 'SSO_GET_TOKEN') {
-    // Returns a fresh access token, refreshing silently if expired.
     getValidToken().then((token) => sendResponse({ token })).catch(() => sendResponse({ token: null }));
     return true;
   }
+  if (msg.type === 'SSO_LOGOUT') {
+    chrome.storage.local.remove(['xToken', 'xTokenEnc'], () => sendResponse({ ok: true }));
+    return true;
+  }
   if (msg.type === 'SSO_POST') {
-    // Posts a tweet on the user's behalf. Token was already approved via SSO.
-    // The user's explicit approval happens in panel.js (propose -> approve).
-    // Optional msg.reply.in_reply_to_tweet_id threads the post under a focused contact.
+    // Gated in panel UI (propose → approve). Text length hard-capped here too.
     getValidToken().then(async (token) => {
-      if (!token) return sendResponse({ ok: false, error: 'no token' });
-      const body = { text: msg.text };
-      if (msg.reply && msg.reply.in_reply_to_tweet_id) body.reply = msg.reply;
+      if (!token) return sendResponse({ ok: false, error: 'no token — sign in with X first' });
+      const text = String(msg.text || '').slice(0, 28000);
+      if (!text.trim()) return sendResponse({ ok: false, error: 'empty text' });
+      const body = { text };
+      if (msg.reply && msg.reply.in_reply_to_tweet_id) {
+        const id = String(msg.reply.in_reply_to_tweet_id);
+        // Tweet ids are numeric snowflakes — reject obvious user-id mistakes if needed
+        if (!/^\d{1,25}$/.test(id)) {
+          return sendResponse({ ok: false, error: 'invalid in_reply_to_tweet_id' });
+        }
+        body.reply = { in_reply_to_tweet_id: id };
+      }
       const r = await fetch('https://api.x.com/2/tweets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
         body: JSON.stringify(body)
       });
-      const j = await r.json();
-      sendResponse({ ok: r.ok, data: j.data, error: j.error });
+      const j = await r.json().catch(() => ({}));
+      sendResponse({
+        ok: r.ok,
+        data: j.data,
+        error: r.ok ? null : xErrorMessage(j, r.status)
+      });
     }).catch((e) => sendResponse({ ok: false, error: e.message }));
     return true;
   }

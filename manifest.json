@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "X Grok Sidebar — MIST-grade",
-  "version": "0.3.0",
-  "description": "Persistent Grok/Aurelia chat on X's right rail. bitchat-inspired channels, SSO, on-device fallback, and MIST (Aurelia) sovereign local soul.",
+  "version": "0.4.0",
+  "description": "Persistent Grok companion on X's right rail. Pin tweets, chat with Grok/MIST/local, gated post-on-behalf, sovereign fallbacks.",
   "action": {
     "default_popup": "popup.html",
     "default_title": "X Grok Sidebar settings"
@@ -11,12 +11,14 @@
   "host_permissions": [
     "https://x.com/*",
     "https://twitter.com/*",
+    "https://api.x.com/*",
     "https://api.x.ai/*",
     "https://api.twitter.com/*",
     "http://localhost/*",
     "http://127.0.0.1/*",
     "https://huggingface.co/*",
-    "https://cdn.jsdelivr.net/*"
+    "https://cdn.jsdelivr.net/*",
+    "https://*.hf.co/*"
   ],
   "content_scripts": [
     {
@@ -31,7 +33,17 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["panel.html"],
+      "resources": [
+        "panel.html",
+        "panel.js",
+        "panel.css",
+        "crypto.js",
+        "router.mjs",
+        "mist.js",
+        "os.js",
+        "localmodel.js",
+        "lib/*"
+      ],
       "matches": ["https://x.com/*", "https://twitter.com/*"]
     }
   ]

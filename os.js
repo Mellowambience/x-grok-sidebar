@@ -6,7 +6,15 @@ let ready = false;
 let statusCache = { agents: 0, tasks: 0, mem: '—', uptime: '—' };
 let probing = null;
 
-export function setEndpoint(ep) { if (ep) endpoint = ep; }
+export function setEndpoint(ep) {
+  if (ep && ep !== endpoint) {
+    endpoint = ep;
+    ready = false;
+    probing = null;
+  } else if (ep) {
+    endpoint = ep;
+  }
+}
 export function isOsReady() { return ready; }
 export function getStatus() { return statusCache; }
 
@@ -27,8 +35,14 @@ export async function probeOs() {
           uptime: j.uptime ?? '—'
         };
         ready = true;
-      } else ready = false;
-    } catch (e) { ready = false; }
+      } else {
+        ready = false;
+      }
+    } catch {
+      ready = false;
+    } finally {
+      probing = null;
+    }
     return ready;
   })();
   return probing;
@@ -40,13 +54,14 @@ export async function askOs(messages) {
     content: 'You are the local sovereign OS — a command deck that runs agents and tasks ' +
       'on the user\'s own machine. Be precise, system-aware, and terse.'
   };
+  const recent = messages.filter((m) => m.role !== 'system').slice(-24);
   const r = await fetch(endpoint + '/v1/chat/completions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       model: 'os',
       stream: false,
-      messages: [sys, ...messages.filter((m) => m.role !== 'system')]
+      messages: [sys, ...recent]
     })
   });
   if (!r.ok) throw new Error('HTTP ' + r.status);
